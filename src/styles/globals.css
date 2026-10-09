@@ -1314,3 +1314,79 @@ img { display: block; max-width: 100%; }
   .page-container { padding: 12px; }
   .plan-amount { font-size: 24px; }
 }
+
+/* ============================================================
+   RESPONSIVE — COMPLÉMENTS v2
+   ============================================================ */
+
+/* ── Tablette (≤ 1024px) ── */
+@media (max-width: 1024px) {
+  .navbar-wallet { display: none; }
+}
+
+/* ── Mobile (≤ 768px) — compléments ── */
+@media (max-width: 768px) {
+  /* Page container moins large */
+  .page-container { padding: 14px 14px; }
+
+  /* Cacher le solde dans la navbar sur mobile (déjà dans le menu) */
+  .navbar-right { gap: 4px; }
+
+  /* Bouton logout desktop aussi caché */
+  .navbar-logout { display: none; }
+
+  /* Les tableaux admin scrollent horizontalement */
+  .admin-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--r-md);
+  }
+
+  /* Tabs admin : grille 2×2 sur mobile */
+  .admin-tabs {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .admin-tabs button {
+    justify-content: center;
+    font-size: 12px !important;
+    padding: 8px 6px !important;
+  }
+
+  /* Alerte retrait en attente */
+  .admin-alert { font-size: 12px !important; }
+
+  /* Section header admin : empile les filtres */
+  .admin-section-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .admin-filter-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* Formulaire retrait : boutons quick-pick en grille */
+  .withdraw-quickpick {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Page header compact */
+  .page-title { font-size: 18px !important; }
+  .page-subtitle { font-size: 12px !important; }
+}
+
+/* ── Petit mobile (≤ 420px) ── */
+@media (max-width: 420px) {
+  /* Admin tabs en colonne simple */
+  .admin-tabs {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Cards stat encore plus compactes */
+  .stat-card { padding: 14px !important; }
+  .stat-value { font-size: 18px; }
+}

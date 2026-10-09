@@ -341,18 +341,18 @@ export default function DouyinPage() {
           )}
 
           {/* ── Tabs ── */}
-          <div style={{ display: 'flex', gap: '6px', marginBottom: '24px', flexWrap: 'wrap' }}>
+          <div className="admin-tabs" style={{ display: 'flex', gap: '6px', marginBottom: '24px', flexWrap: 'wrap' }}>
             {([
               { id: 'stats',       label: 'Statistiques',   icon: BarChart3 },
               { id: 'users',       label: `Utilisateurs (${users.length})`, icon: Users },
               { id: 'withdrawals', label: `Retraits${pendingCount > 0 ? ` (${pendingCount} ⚠)` : ''}`, icon: ArrowDownToLine },
-              { id: 'investments', label: `Investissements (${investments.length})`, icon: TrendingUp },
+              { id: 'investments', label: `Invest. (${investments.length})`, icon: TrendingUp },
             ] as { id: Tab; label: string; icon: React.ComponentType<{ size?: number }> }[]).map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
                 className={`nav-item${tab === id ? ' active' : ''}`}
-                style={{ cursor: 'pointer', border: 'none', background: tab === id ? undefined : 'var(--bg-card)', borderRadius: 'var(--r-sm)' }}
+                style={{ cursor: 'pointer', border: 'none', background: tab === id ? undefined : 'var(--bg-card)', borderRadius: 'var(--r-sm)', flex: 1 }}
               >
                 <Icon size={14} /> {label}
               </button>
@@ -442,22 +442,22 @@ export default function DouyinPage() {
           {tab === 'users' && (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
 
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }} className="admin-section-header">
                 <div className="section-title" style={{ flex: 1 }}>
                   <Users size={15} style={{ color: 'var(--primary)' }} /> Utilisateurs inscrits
                 </div>
-                <div style={{ position: 'relative', minWidth: '220px' }}>
+                <div style={{ position: 'relative', minWidth: '200px', width: '100%', maxWidth: '280px' }}>
                   <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-400)' }} />
                   <input
                     className="form-input" style={{ paddingLeft: '30px', margin: 0 }}
-                    placeholder="Rechercher (tél, nom, code)…"
+                    placeholder="Rechercher…"
                     value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
                   />
                 </div>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <div className="admin-table-wrap">
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '780px' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
                       {([
@@ -488,21 +488,18 @@ export default function DouyinPage() {
                           onMouseEnter={(e) => { if (!isEditing) e.currentTarget.style.background = 'var(--bg-subtle)'; }}
                           onMouseLeave={(e) => { if (!isEditing) e.currentTarget.style.background = ''; }}
                         >
-                          {/* Téléphone */}
                           <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-900)', whiteSpace: 'nowrap' }}>
                             {isEditing ? (
                               <input className="form-input" style={{ margin: 0, padding: '5px 8px', fontSize: '12px', width: '110px' }}
                                 value={editPhone} onChange={(e) => setEditPhone(e.target.value.replace(/\D/g, ''))} maxLength={8} />
                             ) : formatPhone(u.phone)}
                           </td>
-                          {/* Nom */}
                           <td style={{ padding: '10px 14px', color: 'var(--text-500)' }}>
                             {isEditing ? (
                               <input className="form-input" style={{ margin: 0, padding: '5px 8px', fontSize: '12px', width: '130px' }}
                                 placeholder="Nom complet" value={editName} onChange={(e) => setEditName(e.target.value)} />
                             ) : (u.name ?? <span style={{ color: 'var(--text-400)', fontStyle: 'italic' }}>—</span>)}
                           </td>
-                          {/* Rôle */}
                           <td style={{ padding: '10px 14px' }}>
                             {isEditing ? (
                               <select className="form-input" style={{ margin: 0, padding: '5px 8px', fontSize: '12px', width: '90px' }}
@@ -516,23 +513,18 @@ export default function DouyinPage() {
                               </span>
                             )}
                           </td>
-                          {/* Total investi */}
                           <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--amber-600)', whiteSpace: 'nowrap' }}>
                             {fmt(u.totalInvested)} FCFA
                           </td>
-                          {/* Solde */}
                           <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                             {fmt(u.walletBalance)} FCFA
                           </td>
-                          {/* Code */}
                           <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--green-600)', fontWeight: 700 }}>
                             {u.referralCode}
                           </td>
-                          {/* Date */}
                           <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>
                             {formatDate(u.createdAt)}
                           </td>
-                          {/* Actions */}
                           <td style={{ padding: '10px 14px' }}>
                             {isEditing ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -540,11 +532,11 @@ export default function DouyinPage() {
                                 <div style={{ display: 'flex', gap: '6px' }}>
                                   <button className="btn btn-sm btn-green" style={{ padding: '4px 10px', fontSize: '12px' }}
                                     disabled={editLoading} onClick={() => saveEdit(u.id)}>
-                                    <Save size={11} /> {editLoading ? '…' : 'Enregistrer'}
+                                    <Save size={11} /> {editLoading ? '…' : 'OK'}
                                   </button>
                                   <button className="btn btn-sm btn-outline" style={{ padding: '4px 10px', fontSize: '12px' }}
                                     onClick={cancelEdit}>
-                                    <XIcon size={11} /> Annuler
+                                    <XIcon size={11} />
                                   </button>
                                 </div>
                               </div>
@@ -552,11 +544,10 @@ export default function DouyinPage() {
                               <div style={{ display: 'flex', gap: '6px' }}>
                                 <button className="btn btn-sm btn-outline" style={{ padding: '4px 10px', fontSize: '12px' }}
                                   onClick={() => startEdit(u)} title="Modifier">
-                                  <Pencil size={11} /> Modifier
+                                  <Pencil size={11} />
                                 </button>
                                 {deleteConfirm === u.id ? (
                                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '11px', color: 'var(--red-600)', fontWeight: 700 }}>Confirmer ?</span>
                                     <button className="btn btn-sm" style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--red-600)', color: '#fff', border: 'none' }}
                                       disabled={deleteLoading} onClick={() => deleteUser(u.id)}>
                                       {deleteLoading ? '…' : 'Oui'}
@@ -595,11 +586,11 @@ export default function DouyinPage() {
           {tab === 'withdrawals' && (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
 
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="admin-section-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div className="section-title" style={{ flex: 1 }}>
                   <ArrowDownToLine size={15} style={{ color: 'var(--amber-600)' }} /> Demandes de retrait
                 </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <div className="admin-filter-row" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {([
                     { f: 'pending' as const, label: `En attente (${pendingCount})` },
                     { f: 'all' as const, label: 'Tous' },
@@ -614,8 +605,8 @@ export default function DouyinPage() {
                 </div>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <div className="admin-table-wrap">
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '820px' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
                       {['Réf', 'Utilisateur', 'Montant', 'Méthode', 'N° paiement', 'Type', 'Statut', 'Date', 'Actions'].map((h) => (
@@ -647,14 +638,9 @@ export default function DouyinPage() {
                           {w.type}
                         </td>
                         <td style={{ padding: '10px 14px' }}>
-                          <span
-                            className={`badge ${w.status === 'paid' ? 'badge-paid' : ''}`}
-                            style={
-                              w.status === 'cancelled' ? { background: 'var(--red-50)', color: 'var(--red-600)' }
-                              : w.status === 'pending' ? { background: 'var(--amber-100)', color: 'var(--amber-600)' }
-                              : {}
-                            }
-                          >
+                          <span className={`badge ${w.status === 'paid' ? 'badge-paid' : ''}`}
+                            style={w.status === 'cancelled' ? { background: 'var(--red-50)', color: 'var(--red-600)' }
+                              : w.status === 'pending' ? { background: 'var(--amber-100)', color: 'var(--amber-600)' } : {}}>
                             {w.status === 'paid' ? <CheckCircle2 size={10} /> : w.status === 'cancelled' ? <XCircle size={10} /> : <Clock size={10} />}
                             {w.status === 'paid' ? 'Payé' : w.status === 'cancelled' ? 'Annulé' : 'En attente'}
                           </span>
@@ -697,11 +683,11 @@ export default function DouyinPage() {
           {tab === 'investments' && (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
 
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div className="admin-section-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div className="section-title" style={{ flex: 1 }}>
                   <TrendingUp size={15} style={{ color: 'var(--green-600)' }} /> Tous les investissements
                 </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <div className="admin-filter-row" style={{ display: 'flex', gap: '6px' }}>
                   {(['all', 'active', 'completed'] as const).map((f) => (
                     <button key={f} onClick={() => setInvFilter(f)}
                       className={`btn btn-sm${invFilter === f ? ' btn-green' : ' btn-outline'}`}>
@@ -711,11 +697,11 @@ export default function DouyinPage() {
                 </div>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <div className="admin-table-wrap">
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '820px' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                      {['Utilisateur', 'Plan', 'Montant', 'Remb. 50%', 'Gain J+30', 'Statut', 'J restants', 'Expiration', 'Date'].map((h) => (
+                      {['Utilisateur', 'Plan', 'Montant', 'Remb. 50%', 'Gain J+30', 'Statut', 'Jours', 'Expiration', 'Date'].map((h) => (
                         <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-500)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
