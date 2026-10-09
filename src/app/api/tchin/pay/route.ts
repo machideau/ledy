@@ -9,6 +9,7 @@ import type { ApiError } from "@/lib/types";
 // POST /api/tchin/pay
 // Creates a Tchin payment for a given plan.
 // Returns { payment_url, token } — the client redirects the user to payment_url.
+// After payment, Tchin redirects back to return_url with ?status=success&token=…
 export async function POST(request: Request) {
   const user = await requireUser();
 
@@ -27,27 +28,26 @@ export async function POST(request: Request) {
     return NextResponse.json<ApiError>({ error: "Plan invalide." }, { status: 400 });
   }
 
-  // Webhook URL where Tchin will POST confirmation
-  const webhookUrl = process.env.TCHIN_WEBHOOK_URL!;
-  // Redirect URL after payment (back to /dashboard with success indicator + token for polling)
   const appBase = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-  // We need the token first to build the redirect URL, but Tchin returns it.
-  // So we pass a base redirect and then recreate with token after the call.
-  const redirectBase = `${appBase}/dashboard?payment=success`;
+  // callback_url: where Tchin POSTs the signed webhook confirmation
+  // return_url:   where Tchin redirects the user after payment (adds ?status=…&token=…)
+  const callbackUrl = process.env.TCHIN_WEBHOOK_URL!;
+  const returnUrl = `${appBase}/dashboard?payment=success`;
 
-  const tchinResponse = await createPayment({
-    amount: plan.amount,
-    description: `LEED Togo — Plan ${plan.name}`,
-    phone,
-    operator: paymentMethod,
-    webhook_url: webhookUrl,
-    redirect_url: redirectBase,
-    metadata: {
-      userId: user.id,
-      planId,
-    },
-  });
+  let tchinResponse;
+  try {
+    tchinResponse = await createPayment({
+      amount: plan.amount,
+      description: `LEED Togo — Plan ${plan.name}`,
+      callback_url: callbackUrl,
+      return_url: returnUrl,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Tchin: payment creation failed";
+    console.error("[tchin/pay] createPayment error:", message);
+    return NextResponse.json<ApiError>({ error: message }, { status: 502 });
+  }
 
   // Persist pending payment for webhook lookup
   await prisma.pendingPayment.create({

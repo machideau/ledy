@@ -21,7 +21,7 @@ const planColors: Record<string, string> = {
 function DashboardContent() {
   const searchParams = useSearchParams();
   const paymentSuccess = searchParams.get('payment') === 'success';
-  // Token may come from sessionStorage (set before Tchin redirect) or query param
+  // Tchin appends ?status=success&token=… to the return_url automatically
   const [paymentToken, setPaymentToken] = useState<string | null>(
     searchParams.get('token') ?? null
   );
@@ -32,7 +32,7 @@ function DashboardContent() {
     paymentSuccess ? 'pending' : null
   );
 
-  // Pick up token from sessionStorage on mount (set by invest page before redirect)
+  // Fallback: pick up token from sessionStorage (set before redirect, in case query param is missing)
   useEffect(() => {
     if (!paymentSuccess) return;
     const stored = sessionStorage.getItem('pendingPaymentToken');

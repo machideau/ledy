@@ -2,6 +2,8 @@
 // Base URL: https://tchin.tech/api/v1
 // Docs: https://doc.tchin.tech
 
+import { createHmac, timingSafeEqual } from "crypto";
+
 const TCHIN_BASE = "https://tchin.tech/api/v1";
 
 function tchinHeaders() {
@@ -17,19 +19,19 @@ export type TchinEnv = "test" | "live";
 // ── Encaissement (collection) ─────────────────────────────────────────────────
 // Creates a payment request. Returns a payment_url to redirect the user to.
 export interface TchinPaymentPayload {
-  amount: number;           // integer FCFA
+  amount: number;             // integer FCFA
   description?: string;
-  phone?: string;           // pre-fill the payment page
-  operator?: "flooz" | "tmoney";
-  webhook_url?: string;     // where Tchin POSTs confirmation
-  redirect_url?: string;    // where to redirect after payment
-  metadata?: Record<string, string>;
+  env?: TchinEnv;
+  return_url?: string;        // where to redirect the client after payment
+  cancel_url?: string;        // where to redirect if the client cancels
+  callback_url?: string;      // where Tchin POSTs confirmation webhook
+  fees_on_customer?: boolean; // true = fees added on top and paid by client
 }
 
 export interface TchinPaymentResponse {
   success: boolean;
-  token: string;            // idempotence key — store it
-  payment_url: string;      // redirect user here
+  token: string;              // idempotence key — store it
+  payment_url: string;        // redirect user here
   env: "sandbox" | "live";
 }
 
@@ -44,47 +46,88 @@ export async function createPayment(
     body: JSON.stringify({ ...payload, env }),
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
 
-  if (!data.success) {
-    throw new Error(data.message ?? "Tchin: payment creation failed");
+  if (!res.ok || !data.success) {
+    const msg = data.message ?? data.error ?? `Tchin: HTTP ${res.status}`;
+    throw new Error(msg);
   }
 
   return data as TchinPaymentResponse;
 }
 
 // ── Webhook payload types ─────────────────────────────────────────────────────
-// Tchin POSTs this to your webhook_url when the payment is completed/failed.
+// Tchin POSTs application/x-www-form-urlencoded to your callback_url.
+// The payload is nested under the "data" key.
+// See: https://doc.tchin.tech/webhooks
 export interface TchinWebhookPayload {
-  token: string;            // same token as in createPayment response
-  status: "completed" | "failed" | "pending";
+  status: "completed" | "pending" | "failed" | "cancelled";
+  reference: string;    // token of the payment link
+  token: string;        // unique transaction id — your idempotence key
+  amount: string;       // amount paid by the client (FCFA, as string)
+  fee: string;          // Tchin fee (FCFA)
+  net: string;          // amount credited to your balance (FCFA)
+  country?: string;
+  method?: string;
+  kind?: string;        // "payout" for a disbursement; absent for collection
   mode: "test" | "live";
-  amount: number;
-  currency: string;
-  phone?: string;
-  operator?: string;
-  metadata?: Record<string, string>;
-  // signature fields (for HMAC verification when Tchin publishes the spec)
-  signature?: string;
+  timestamp: string;    // unix timestamp as string
+  signature: string;    // HMAC-SHA256 of "timestamp.reference.token.status.amount.net.mode"
+  hash?: string;        // legacy — do NOT use for authentication
+  customer?: { name?: string; email?: string; phone?: string };
 }
 
-// Verify that a webhook came from Tchin.
+// Parse a raw application/x-www-form-urlencoded webhook body.
+// Tchin wraps everything under a "data" key whose value is JSON.
+export function parseTchinWebhook(rawBody: string): TchinWebhookPayload | null {
+  try {
+    const params = new URLSearchParams(rawBody);
+    const dataStr = params.get("data");
+    if (!dataStr) return null;
+    return JSON.parse(dataStr) as TchinWebhookPayload;
+  } catch {
+    return null;
+  }
+}
+
+// Verify the HMAC-SHA256 signature of a Tchin webhook.
 //
-// ⚠️  SECURITY NOTE — two-layer defence:
-//   Layer 1 (current): env-mode check — rejects cross-environment replays
-//     (test webhook hitting a live server and vice-versa).
-//   Layer 2 (TODO): HMAC-SHA256 signature — Tchin does not yet publish a
-//     shared-secret spec. When they do, add it here:
-//       const sig = request.headers.get("X-Tchin-Signature");
-//       const expected = crypto.createHmac("sha256", process.env.TCHIN_WEBHOOK_SECRET!)
-//         .update(rawBody).digest("hex");
-//       if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+// Signed string: timestamp.reference.token.status.amount.net.mode
+// Algorithm:     HMAC-SHA256(signed_string, PRIVATE_TCHIN_KEY) → hex lowercase
 //
-// The database check (token exists in PendingPayment) is the final line of
-// defence and is handled in the webhook route itself.
+// Additional checks:
+//   - env-mode match: reject test webhooks on a live server and vice-versa.
+//   - timestamp freshness: reject payloads older than 5 minutes.
 export function isWebhookLegit(payload: TchinWebhookPayload): boolean {
   const expectedMode = process.env.TCHIN_ENV === "live" ? "live" : "test";
-  // Reject test webhooks hitting a live env and vice-versa
+
+  // Reject cross-environment replays
   if (payload.mode !== expectedMode) return false;
-  return true;
+
+  // Reject stale payloads (> 5 minutes)
+  const ts = parseInt(payload.timestamp, 10);
+  if (isNaN(ts) || Math.abs(Date.now() / 1000 - ts) > 300) return false;
+
+  // Verify HMAC-SHA256 signature
+  const privateKey = process.env.PRIVATE_TCHIN_KEY!;
+  const signedString = [
+    payload.timestamp,
+    payload.reference,
+    payload.token,
+    payload.status,
+    payload.amount,
+    payload.net,
+    payload.mode,
+  ].join(".");
+
+  const expected = createHmac("sha256", privateKey)
+    .update(signedString)
+    .digest("hex");
+
+  try {
+    return timingSafeEqual(Buffer.from(payload.signature, "hex"), Buffer.from(expected, "hex"));
+  } catch {
+    // Buffer lengths differ if signature is malformed
+    return false;
+  }
 }
