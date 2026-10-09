@@ -40,7 +40,8 @@ model Investment {
   remb       Int                       // 50 % immediate refund
   gain       Int                       // doubled amount at J+30
   status     String   @default("active") // active | completed
-  daysLeft   Int                       // days remaining (0 = completed)
+  daysLeft   Int                       // approximate days remaining (for compat)
+  expiresAt  DateTime                  // exact expiry timestamp (J+30 from creation)
   tchinToken String?                   // Tchin payment token (idempotence)
   createdAt  DateTime @default(now())
 

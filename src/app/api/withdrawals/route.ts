@@ -55,10 +55,13 @@ export async function POST(request: Request) {
   ]);
 
   const totalRemb = investments.reduce((s, i) => s + i.remb, 0);
+  const completedGains = investments
+    .filter((i) => i.status === "completed")
+    .reduce((s, i) => s + i.gain, 0);
   const referralEarnings = referrals
     .filter((r) => r.status === "paid")
     .reduce((s, r) => s + r.commission, 0);
-  const balance = totalRemb + referralEarnings;
+  const balance = totalRemb + completedGains + referralEarnings;
 
   // Subtract already-requested withdrawals
   const existingWithdrawals = await prisma.withdrawal.findMany({

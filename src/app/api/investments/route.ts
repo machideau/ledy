@@ -23,6 +23,7 @@ export async function GET() {
       gain: inv.gain,
       status: inv.status,
       daysLeft: inv.daysLeft,
+      expiresAt: inv.expiresAt.toISOString(),
       createdAt: inv.createdAt.toISOString(),
     }))
   );
@@ -48,6 +49,8 @@ export async function POST(request: Request) {
   }
 
   // Create the investment record
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + INVESTMENT_DURATION_DAYS * 24 * 60 * 60 * 1000);
   const investment = await prisma.investment.create({
     data: {
       userId: user.id,
@@ -57,6 +60,7 @@ export async function POST(request: Request) {
       gain: plan.gain,
       status: "active",
       daysLeft: INVESTMENT_DURATION_DAYS,
+      expiresAt,
     },
   });
 
@@ -98,6 +102,7 @@ export async function POST(request: Request) {
       gain: investment.gain,
       status: investment.status,
       daysLeft: investment.daysLeft,
+      expiresAt: investment.expiresAt.toISOString(),
       createdAt: investment.createdAt.toISOString(),
     },
     { status: 201 }

@@ -11,6 +11,7 @@ import { api, ApiClientError } from '@/lib/api';
 import { formatPhone, formatDate, fmt } from '@/lib/format';
 import type { DashboardData } from '@/lib/types';
 import { Suspense } from 'react';
+import Countdown from '@/components/Countdown';
 
 const planColors: Record<string, string> = {
   Or: 'var(--amber-600)',  Starter: 'var(--green-600)',
@@ -183,8 +184,10 @@ function DashboardContent() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {data.investments.map((inv, i) => {
-                    const progress = inv.status === 'completed' ? 100 : Math.round((1 - inv.daysLeft / 30) * 100);
                     const color = planColors[inv.planName] || 'var(--green-600)';
+                    const msTotal = new Date(inv.expiresAt).getTime() - new Date(inv.createdAt).getTime();
+                    const msLeft  = Math.max(0, new Date(inv.expiresAt).getTime() - Date.now());
+                    const progress = inv.status === 'completed' ? 100 : Math.round(((msTotal - msLeft) / msTotal) * 100);
                     return (
                       <div key={i} style={{
                         background: 'var(--bg-subtle)',
@@ -192,28 +195,40 @@ function DashboardContent() {
                         padding: '14px 16px',
                         border: '1px solid var(--border)',
                       }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{
-                              width: '8px', height: '8px', borderRadius: '50%',
-                              background: color, flexShrink: 0,
-                            }} />
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, flexShrink: 0 }} />
                             <span style={{ color, fontWeight: 800, fontSize: '14px' }}>Plan {inv.planName}</span>
                             <span style={{ color: 'var(--text-400)', fontSize: '11.5px' }}>{formatDate(inv.createdAt)}</span>
                           </div>
-                          <span className={`badge ${inv.status === 'completed' ? 'badge-paid' : 'badge-pending'}`}>
-                            {inv.status === 'completed'
-                              ? <><CheckCircle2 size={11} /> Terminé</>
-                              : <><Clock size={11} /> J-{inv.daysLeft}</>
-                            }
-                          </span>
+                          {inv.status === 'completed'
+                            ? <span className="badge badge-paid"><CheckCircle2 size={11} /> Terminé</span>
+                            : <span className="badge badge-pending"><Clock size={11} /> En cours</span>
+                          }
                         </div>
 
+                        {/* Montants */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--text-500)', marginBottom: '10px' }}>
                           <span>Dépôt : <strong style={{ color: 'var(--text-900)' }}>{fmt(inv.amount)} FCFA</strong></span>
                           <span>Gain : <strong style={{ color }}>+{fmt(inv.gain)} FCFA</strong></span>
                         </div>
 
+                        {/* Countdown ou message de fin */}
+                        {inv.status === 'active' ? (
+                          <div style={{ marginBottom: '10px' }}>
+                            <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-400)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '5px' }}>
+                              Temps restant
+                            </div>
+                            <Countdown expiresAt={inv.expiresAt} color={color} />
+                          </div>
+                        ) : (
+                          <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: 'var(--green-600)', fontWeight: 700 }}>
+                            <CheckCircle2 size={14} /> Gain disponible · {fmt(inv.gain)} FCFA
+                          </div>
+                        )}
+
+                        {/* Barre de progression */}
                         <div className="progress-bar">
                           <div className="progress-fill" style={{ width: `${progress}%`, background: color }} />
                         </div>

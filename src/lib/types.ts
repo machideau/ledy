@@ -31,6 +31,7 @@ export interface InvestmentDTO {
   gain: number;
   status: InvestmentStatus;
   daysLeft: number;
+  expiresAt: string;   // ISO string — used for live countdown
   createdAt: string;
 }
 

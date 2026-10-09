@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PLAN_BY_ID, INVESTMENT_DURATION_DAYS } from "@/lib/plans";
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
 import { isWebhookLegit, type TchinWebhookPayload } from "@/lib/tchin";
 
 // POST /api/tchin/webhook
@@ -61,6 +67,7 @@ export async function POST(request: Request) {
       });
 
       // Create the investment
+      const now = new Date();
       await tx.investment.create({
         data: {
           userId: pending.userId,
@@ -70,6 +77,7 @@ export async function POST(request: Request) {
           gain: plan.gain,
           status: "active",
           daysLeft: INVESTMENT_DURATION_DAYS,
+          expiresAt: addDays(now, INVESTMENT_DURATION_DAYS),
           tchinToken: token,
         },
       });
