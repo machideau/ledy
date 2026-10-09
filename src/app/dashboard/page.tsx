@@ -21,9 +21,26 @@ const planColors: Record<string, string> = {
 function DashboardContent() {
   const searchParams = useSearchParams();
   const paymentSuccess = searchParams.get('payment') === 'success';
-  const [copied,  setCopied]  = useState(false);
-  const [data,    setData]    = useState<DashboardData | null>(null);
-  const [loadErr, setLoadErr] = useState('');
+  // Token may come from sessionStorage (set before Tchin redirect) or query param
+  const [paymentToken, setPaymentToken] = useState<string | null>(
+    searchParams.get('token') ?? null
+  );
+  const [copied,       setCopied]       = useState(false);
+  const [data,         setData]         = useState<DashboardData | null>(null);
+  const [loadErr,      setLoadErr]      = useState('');
+  const [paymentState, setPaymentState] = useState<'pending' | 'confirmed' | 'failed' | null>(
+    paymentSuccess ? 'pending' : null
+  );
+
+  // Pick up token from sessionStorage on mount (set by invest page before redirect)
+  useEffect(() => {
+    if (!paymentSuccess) return;
+    const stored = sessionStorage.getItem('pendingPaymentToken');
+    if (stored) {
+      sessionStorage.removeItem('pendingPaymentToken');
+      setPaymentToken(prev => prev ?? stored);
+    }
+  }, [paymentSuccess]);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +57,43 @@ function DashboardContent() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Poll payment status when redirected back from Tchin
+  useEffect(() => {
+    if (!paymentSuccess || !paymentToken) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20; // 20 × 3 s = 60 s max
+
+    const poll = async () => {
+      if (cancelled || attempts >= MAX_ATTEMPTS) {
+        if (!cancelled) setPaymentState('failed');
+        return;
+      }
+      attempts++;
+      try {
+        const { status } = await api.tchinStatus(paymentToken);
+        if (cancelled) return;
+        if (status === 'completed') {
+          setPaymentState('confirmed');
+          // Refresh dashboard data to show the new investment
+          const d = await api.dashboard();
+          if (!cancelled) setData(d);
+        } else if (status === 'failed') {
+          setPaymentState('failed');
+        } else {
+          // Still pending — retry in 3 s
+          setTimeout(poll, 3000);
+        }
+      } catch {
+        if (!cancelled) setTimeout(poll, 3000);
+      }
+    };
+
+    poll();
+    return () => { cancelled = true; };
+  }, [paymentSuccess, paymentToken]);
 
   const handleCopy = () => {
     if (!data) return;
@@ -101,7 +155,22 @@ function DashboardContent() {
           </div>
 
           {/* ── Banner succès paiement ── */}
-          {paymentSuccess && (
+          {paymentState === 'pending' && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              background: 'var(--amber-50)', border: '1px solid var(--amber-100)',
+              borderRadius: 'var(--r-md)', padding: '14px 18px', marginBottom: '20px',
+            }}>
+              <Clock size={22} style={{ color: 'var(--amber-600)', flexShrink: 0, animation: 'spin 1.5s linear infinite' }} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--amber-600)' }}>Confirmation en cours…</div>
+                <div style={{ fontSize: '12.5px', color: 'var(--text-500)', marginTop: '2px' }}>
+                  On attend la confirmation de Tchin. Votre investissement sera activé dans quelques secondes.
+                </div>
+              </div>
+            </div>
+          )}
+          {paymentState === 'confirmed' && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '12px',
               background: 'var(--green-50)', border: '1px solid var(--green-100)',
@@ -109,9 +178,24 @@ function DashboardContent() {
             }}>
               <CheckCircle2 size={22} style={{ color: 'var(--green-600)', flexShrink: 0 }} />
               <div>
-                <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--green-600)' }}>Paiement reçu !</div>
+                <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--green-600)' }}>Paiement confirmé !</div>
                 <div style={{ fontSize: '12.5px', color: 'var(--text-500)', marginTop: '2px' }}>
-                  Votre investissement sera activé dès confirmation de Tchin (généralement quelques secondes).
+                  Votre investissement est maintenant actif. Bonne chance !
+                </div>
+              </div>
+            </div>
+          )}
+          {paymentState === 'failed' && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              background: 'var(--red-50)', border: '1px solid var(--red-100)',
+              borderRadius: 'var(--r-md)', padding: '14px 18px', marginBottom: '20px',
+            }}>
+              <CheckCircle2 size={22} style={{ color: 'var(--red-600)', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--red-600)' }}>Paiement non confirmé</div>
+                <div style={{ fontSize: '12.5px', color: 'var(--text-500)', marginTop: '2px' }}>
+                  Aucune confirmation reçue de Tchin. Si vous avez payé, contactez le support.
                 </div>
               </div>
             </div>

@@ -48,12 +48,16 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
     if (!phone || phone.length < 8) return;
     setStep('creating');
     try {
-      const { payment_url } = await api.tchinPay({
+      const { payment_url, token } = await api.tchinPay({
         planId: plan.id,
         paymentMethod: payMethod,
         phone,
       });
       setStep('redirecting');
+      // Store token so the dashboard can poll for confirmation after redirect
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('pendingPaymentToken', token);
+      }
       // Small delay so the user sees the "redirecting" message
       await new Promise(r => setTimeout(r, 800));
       window.location.href = payment_url;

@@ -29,9 +29,12 @@ export async function POST(request: Request) {
 
   // Webhook URL where Tchin will POST confirmation
   const webhookUrl = process.env.TCHIN_WEBHOOK_URL!;
-  // Redirect URL after payment (back to /dashboard with success indicator)
+  // Redirect URL after payment (back to /dashboard with success indicator + token for polling)
   const appBase = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const redirectUrl = `${appBase}/dashboard?payment=success`;
+
+  // We need the token first to build the redirect URL, but Tchin returns it.
+  // So we pass a base redirect and then recreate with token after the call.
+  const redirectBase = `${appBase}/dashboard?payment=success`;
 
   const tchinResponse = await createPayment({
     amount: plan.amount,
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
     phone,
     operator: paymentMethod,
     webhook_url: webhookUrl,
-    redirect_url: redirectUrl,
+    redirect_url: redirectBase,
     metadata: {
       userId: user.id,
       planId,
