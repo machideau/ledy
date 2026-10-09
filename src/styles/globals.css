@@ -65,7 +65,7 @@
   --navbar-h:   60px;
 
   /* ── Typographie ── */
-  --font-base:    30px;
+  --font-base:    20px;
   --font-sans:    'Times New Roman', Times, serif;
   --font-family:  var(--font-sans);
 
@@ -167,13 +167,13 @@ img { display: block; max-width: 100%; }
 .navbar-logo img { border-radius: var(--r-sm); }
 
 .logo-text {
-  font-size: 17px;
+  font-size: 22px;
   font-weight: 900;
   color: var(--primary);
   letter-spacing: -0.5px;
 }
 .logo-sub {
-  font-size: 10.5px;
+  font-size: 14px;
   color: var(--text-400);
   font-weight: 600;
   display: flex;
@@ -205,7 +205,7 @@ img { display: block; max-width: 100%; }
   border: 1px solid rgba(192,138,58,0.22);
   border-radius: 30px;
   padding: 6px 13px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--amber-600);
   white-space: nowrap;
@@ -223,7 +223,7 @@ img { display: block; max-width: 100%; }
   cursor: pointer;
 }
 .navbar-phone {
-  font-size: 12.5px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-700);
   white-space: nowrap;
@@ -238,7 +238,7 @@ img { display: block; max-width: 100%; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 800;
   flex-shrink: 0;
   letter-spacing: 0.5px;
@@ -264,7 +264,7 @@ img { display: block; max-width: 100%; }
   padding: 7px 12px;
   border-radius: var(--r-sm);
   color: var(--text-500);
-  font-size: 13.5px;
+  font-size: 17px;
   font-weight: 600;
   white-space: nowrap;
   text-decoration: none;
@@ -282,7 +282,7 @@ img { display: block; max-width: 100%; }
 .nav-badge {
   background: var(--primary);
   color: #fff;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 20px;
@@ -299,7 +299,7 @@ img { display: block; max-width: 100%; }
   gap: 12px;
 }
 .page-title {
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 800;
   color: var(--text-900);
   display: flex;
@@ -308,7 +308,7 @@ img { display: block; max-width: 100%; }
   letter-spacing: -0.3px;
 }
 .page-subtitle {
-  font-size: 13px;
+  font-size: 17px;
   color: var(--text-400);
   margin-top: 3px;
   font-weight: 500;
@@ -325,7 +325,7 @@ img { display: block; max-width: 100%; }
   margin-bottom: 16px;
 }
 .section-title {
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-900);
   display: flex;
@@ -333,7 +333,7 @@ img { display: block; max-width: 100%; }
   gap: 7px;
 }
 .section-subtitle {
-  font-size: 12.5px;
+  font-size: 17px;
   color: var(--text-400);
   margin-top: 3px;
   font-weight: 500;
@@ -406,7 +406,7 @@ img { display: block; max-width: 100%; }
 .stat-icon-blue   { background: var(--blue-100);   color: var(--blue-600);  }
 
 .stat-label {
-  font-size: 11.5px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-400);
   text-transform: uppercase;
@@ -414,14 +414,14 @@ img { display: block; max-width: 100%; }
   margin-bottom: 5px;
 }
 .stat-value {
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 800;
   color: var(--text-900);
   line-height: 1.1;
   letter-spacing: -0.5px;
 }
 .stat-value .fcfa {
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-400);
   margin-left: 2px;
@@ -430,7 +430,7 @@ img { display: block; max-width: 100%; }
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11.5px;
+  font-size: 15px;
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 20px;
@@ -478,7 +478,7 @@ img { display: block; max-width: 100%; }
   top: 12px; right: 12px;
   background: var(--primary);
   color: #fff;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 20px;
@@ -510,7 +510,7 @@ img { display: block; max-width: 100%; }
 }
 
 .plan-name {
-  font-size: 10.5px;
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.2px;
@@ -518,14 +518,14 @@ img { display: block; max-width: 100%; }
   margin-bottom: 3px;
 }
 .plan-amount {
-  font-size: 28px;
+  font-size: 38px;
   font-weight: 900;
   color: var(--text-900);
   line-height: 1;
   letter-spacing: -0.5px;
 }
 .plan-currency {
-  font-size: 12px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text-400);
   margin-bottom: 14px;
@@ -544,7 +544,7 @@ img { display: block; max-width: 100%; }
 .plan-recap-row {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-500);
 }
 
@@ -559,7 +559,7 @@ img { display: block; max-width: 100%; }
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12.5px;
+  font-size: 15px;
   color: var(--text-700);
 }
 .plan-feature svg { flex-shrink: 0; color: var(--primary); }
@@ -568,7 +568,7 @@ img { display: block; max-width: 100%; }
   width: 100%;
   padding: 11px;
   border-radius: var(--r-md);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   border: none;
   cursor: pointer;
@@ -609,7 +609,7 @@ img { display: block; max-width: 100%; }
 .referral-link-text {
   flex: 1;
   font-family: 'ui-monospace', monospace;
-  font-size: 12.5px;
+  font-size: 15px;
   color: var(--text-700);
   white-space: nowrap;
   overflow: hidden;
@@ -629,13 +629,13 @@ img { display: block; max-width: 100%; }
   text-align: center;
 }
 .ref-stat-value {
-  font-size: 18px;
+  font-size: 26px;
   font-weight: 800;
   color: var(--text-900);
   letter-spacing: -0.3px;
 }
 .ref-stat-label {
-  font-size: 11px;
+  font-size: 15px;
   color: var(--text-400);
   margin-top: 2px;
   font-weight: 500;
@@ -689,7 +689,7 @@ img { display: block; max-width: 100%; }
   gap: 6px;
   padding: 5px 10px;
   border-radius: var(--r-sm);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-500);
   background: transparent;
@@ -710,7 +710,7 @@ img { display: block; max-width: 100%; }
 }
 
 .filter-count {
-  font-size: 10px;
+  font-size: 14px;
   padding: 1px 6px;
   border-radius: 99px;
   background: var(--bg-hover);
@@ -734,7 +734,7 @@ img { display: block; max-width: 100%; }
 .search-input {
   width: 100%;
   padding: 6px 10px 6px 30px;
-  font-size: 12px;
+  font-size: 15px;
   border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--bg-card);
@@ -818,12 +818,12 @@ img { display: block; max-width: 100%; }
 
 .referral-phone-text {
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: 18px;
   color: var(--text-900);
 }
 
 .referral-date-text {
-  font-size: 11px;
+  font-size: 15px;
   color: var(--text-400);
 }
 
@@ -842,7 +842,7 @@ img { display: block; max-width: 100%; }
 }
 
 .referral-col-label {
-  font-size: 10px;
+  font-size: 14px;
   color: var(--text-400);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -850,7 +850,7 @@ img { display: block; max-width: 100%; }
 }
 
 .referral-col-value {
-  font-size: 12.5px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-700);
 }
@@ -860,7 +860,7 @@ img { display: block; max-width: 100%; }
   align-items: center;
   padding: 2px 7px;
   border-radius: 99px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   width: fit-content;
 }
@@ -874,7 +874,7 @@ img { display: block; max-width: 100%; }
   padding: 2px 7px;
   border-radius: 99px;
   font-weight: 800;
-  font-size: 11.5px;
+  font-size: 15px;
   width: fit-content;
 }
 
@@ -897,7 +897,7 @@ img { display: block; max-width: 100%; }
 .data-table th {
   text-align: left;
   padding: 9px 12px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-400);
   border-bottom: 2px solid var(--border);
@@ -909,7 +909,7 @@ img { display: block; max-width: 100%; }
 .data-table th:last-child  { border-radius: 0 var(--r-sm) 0 0; }
 .data-table td {
   padding: 12px;
-  font-size: 13.5px;
+  font-size: 18px;
   border-bottom: 1px solid var(--border);
   color: var(--text-700);
 }
@@ -925,7 +925,7 @@ img { display: block; max-width: 100%; }
   gap: 7px;
   padding: 9px 18px;
   border-radius: var(--r-md);
-  font-size: 13.5px;
+  font-size: 18px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -953,8 +953,8 @@ img { display: block; max-width: 100%; }
 }
 .btn-outline:hover { background: var(--bg-subtle); border-color: var(--border-md); }
 
-.btn-sm { padding: 6px 12px; font-size: 12.5px; }
-.btn-lg { padding: 13px 24px; font-size: 15px; }
+.btn-sm { padding: 6px 12px; font-size: 16px; }
+.btn-lg { padding: 13px 24px; font-size: 20px; }
 
 /* ============================================================
    BADGES
@@ -962,7 +962,7 @@ img { display: block; max-width: 100%; }
 .badge {
   padding: 3px 9px;
   border-radius: 20px;
-  font-size: 11.5px;
+  font-size: 15px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -998,7 +998,7 @@ img { display: block; max-width: 100%; }
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12.5px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-700);
   margin-bottom: 6px;
@@ -1009,7 +1009,7 @@ img { display: block; max-width: 100%; }
   background: var(--bg-card);
   border: 1.5px solid var(--border);
   border-radius: var(--r-md);
-  font-size: 14px;
+  font-size: 18px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
   color: var(--text-900);
@@ -1079,7 +1079,7 @@ img { display: block; max-width: 100%; }
   padding: 7px 14px;
   border-radius: var(--r-sm);
   font-weight: 700;
-  font-size: 12.5px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1221,7 +1221,7 @@ img { display: block; max-width: 100%; }
 
 .mobile-menu .nav-item {
   padding: 11px 14px;
-  font-size: 14.5px;
+  font-size: 19px;
   border-radius: var(--r-md);
 }
 
@@ -1303,10 +1303,10 @@ img { display: block; max-width: 100%; }
 
 /* ── Petit mobile ── */
 @media (max-width: 420px) {
-  .page-title { font-size: 19px; }
-  .stat-value { font-size: 19px; }
+  .page-title { font-size: 24px; }
+  .stat-value { font-size: 24px; }
   .page-container { padding: 12px; }
-  .plan-amount { font-size: 24px; }
+  .plan-amount { font-size: 28px; }
 }
 
 /* ============================================================
@@ -1382,5 +1382,5 @@ img { display: block; max-width: 100%; }
 
   /* Cards stat encore plus compactes */
   .stat-card { padding: 14px !important; }
-  .stat-value { font-size: 18px; }
+  .stat-value { font-size: 22px; }
 }
