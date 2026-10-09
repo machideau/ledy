@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireDouyin } from "@/lib/douyin";
 import type { ApiError } from "@/lib/types";
@@ -52,4 +52,79 @@ export async function GET() {
   });
 
   return NextResponse.json({ users: dto });
+}
+
+// PATCH /api/douyin/users — update name, phone or role
+export async function PATCH(request: NextRequest) {
+  try {
+    await requireDouyin();
+  } catch {
+    return NextResponse.json<ApiError>({ error: "Accès refusé." }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { id, name, phone, role } = body as {
+    id?: string;
+    name?: string;
+    phone?: string;
+    role?: string;
+  };
+
+  if (!id) {
+    return NextResponse.json<ApiError>({ error: "id requis." }, { status: 400 });
+  }
+
+  // Validate role if provided
+  if (role !== undefined && !["user", "douyin"].includes(role)) {
+    return NextResponse.json<ApiError>({ error: "Rôle invalide (user | douyin)." }, { status: 400 });
+  }
+
+  // Check phone uniqueness if changing
+  if (phone) {
+    const existing = await prisma.user.findFirst({ where: { phone, NOT: { id } } });
+    if (existing) {
+      return NextResponse.json<ApiError>({ error: "Ce numéro est déjà utilisé." }, { status: 409 });
+    }
+  }
+
+  const updated = await prisma.user.update({
+    where: { id },
+    data: {
+      ...(name !== undefined ? { name: name || null } : {}),
+      ...(phone ? { phone } : {}),
+      ...(role !== undefined ? { role } : {}),
+    },
+    select: { id: true, phone: true, name: true, role: true, referralCode: true },
+  });
+
+  return NextResponse.json(updated);
+}
+
+// DELETE /api/douyin/users — delete a user
+export async function DELETE(request: NextRequest) {
+  try {
+    await requireDouyin();
+  } catch {
+    return NextResponse.json<ApiError>({ error: "Accès refusé." }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { id } = body as { id?: string };
+
+  if (!id) {
+    return NextResponse.json<ApiError>({ error: "id requis." }, { status: 400 });
+  }
+
+  // Prevent deleting douyin accounts
+  const user = await prisma.user.findUnique({ where: { id }, select: { role: true } });
+  if (!user) {
+    return NextResponse.json<ApiError>({ error: "Utilisateur introuvable." }, { status: 404 });
+  }
+  if (user.role === "douyin") {
+    return NextResponse.json<ApiError>({ error: "Impossible de supprimer un compte admin." }, { status: 403 });
+  }
+
+  await prisma.user.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
 }

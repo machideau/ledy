@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import TogoFlag from '@/components/TogoFlag';
-import { Wallet, ArrowDownToLine, CheckCircle2, Clock, CreditCard, Smartphone, AlertTriangle } from 'lucide-react';
+import { Wallet, ArrowDownToLine, CheckCircle2, Clock, CreditCard, Smartphone, AlertTriangle, XCircle, TrendingUp } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
 import { formatDate, fmt } from '@/lib/format';
 import type { WithdrawalDTO } from '@/lib/types';
@@ -18,6 +18,7 @@ export default function WithdrawPage() {
   const [balance,     setBalance]     = useState(0);
   const [withdrawals, setWithdrawals] = useState<WithdrawalDTO[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [hasInvested, setHasInvested] = useState(true); // assume true until data loaded
 
   useEffect(() => {
     (async () => {
@@ -25,6 +26,7 @@ export default function WithdrawPage() {
         const [dash, wd] = await Promise.all([api.dashboard(), api.withdrawals()]);
         setBalance(dash.walletBalance);
         setWithdrawals(wd.withdrawals);
+        setHasInvested(dash.investments.length > 0);
       } catch {
         // Non-auth errors handled by proxy redirect
       } finally {
@@ -90,14 +92,27 @@ export default function WithdrawPage() {
             <div className="card">
               <div className="section-title" style={{ marginBottom: '18px' }}>Effectuer un retrait</div>
 
-              {done ? (
+              {!hasInvested ? (
+                /* ── Blocage : pas encore investi ── */
                 <div style={{ textAlign: 'center', padding: '32px 16px' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--leed-green-pale)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <CheckCircle2 size={28} style={{ color: 'var(--leed-green)' }} />
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--amber-50)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <AlertTriangle size={28} style={{ color: 'var(--amber-600)' }} />
                   </div>
-                  <h3 style={{ fontWeight: 800, color: 'var(--leed-green)', marginBottom: '8px' }}>Retrait soumis !</h3>
+                  <h3 style={{ fontWeight: 800, color: 'var(--amber-600)', marginBottom: '8px' }}>Plan requis</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '20px' }}>
+                    Pour retirer vos gains de parrainage, vous devez d&apos;abord souscrire à au moins un plan d&apos;investissement.
+                  </p>
+                  <a href="/invest" className="btn btn-green" style={{ display: 'inline-flex', justifyContent: 'center' }}>
+                    <TrendingUp size={15} /> Choisir un plan
+                  </a>
+                </div>
+              ) : done ? (                <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--amber-50)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Clock size={28} style={{ color: 'var(--amber-600)' }} />
+                  </div>
+                  <h3 style={{ fontWeight: 800, color: 'var(--amber-600)', marginBottom: '8px' }}>Demande soumise !</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '18px' }}>
-                    Votre retrait de <strong style={{ color: 'var(--text-primary)' }}>{fmt(parseInt(amount))} FCFA</strong> sera traité sous 24 h.
+                    Votre retrait de <strong style={{ color: 'var(--text-primary)' }}>{fmt(parseInt(amount))} FCFA</strong> est en attente d&apos;approbation par l&apos;administrateur. Vous serez notifié dès qu&apos;il sera traité.
                   </p>
                   <button className="btn btn-green" onClick={() => { setDone(false); setAmount(''); setPhone(''); setError(''); }} style={{ width: '100%', justifyContent: 'center' }}>
                     Nouveau retrait
@@ -213,7 +228,7 @@ export default function WithdrawPage() {
                     )}
                   </button>
                 </form>
-              )}
+              ) /* end !hasInvested ternaire */ }
             </div>
 
             {/* ── Historique ── */}
@@ -235,12 +250,14 @@ export default function WithdrawPage() {
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                         <div style={{
                           width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                          background: w.status === 'paid' ? 'var(--leed-green-pale)' : 'var(--leed-yellow-light)',
+                          background: w.status === 'paid' ? 'var(--leed-green-pale)' : w.status === 'cancelled' ? 'var(--red-50)' : 'var(--amber-50)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
                           {w.status === 'paid'
                             ? <CheckCircle2 size={15} style={{ color: 'var(--leed-green)' }} />
-                            : <Clock        size={15} style={{ color: 'var(--leed-yellow)' }} />
+                            : w.status === 'cancelled'
+                            ? <XCircle size={15} style={{ color: 'var(--red-600)' }} />
+                            : <Clock size={15} style={{ color: 'var(--amber-600)' }} />
                           }
                         </div>
                         <div>
@@ -250,8 +267,15 @@ export default function WithdrawPage() {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontWeight: 800, fontSize: '13.5px', color: 'var(--leed-green)' }}>+{fmt(w.amount)} FCFA</div>
-                        <span className={`badge ${w.status === 'paid' ? 'badge-paid' : 'badge-pending'}`} style={{ fontSize: '10px' }}>
-                          {w.status === 'paid' ? 'Versé' : 'En attente'}
+                        <span
+                          className={`badge ${w.status === 'paid' ? 'badge-paid' : ''}`}
+                          style={
+                            w.status === 'cancelled' ? { background: 'var(--red-50)', color: 'var(--red-600)', fontSize: '10px' }
+                            : w.status === 'pending' ? { background: 'var(--amber-100)', color: 'var(--amber-600)', fontSize: '10px' }
+                            : { fontSize: '10px' }
+                          }
+                        >
+                          {w.status === 'paid' ? 'Approuvé' : w.status === 'cancelled' ? 'Refusé' : 'En attente'}
                         </span>
                       </div>
                     </div>

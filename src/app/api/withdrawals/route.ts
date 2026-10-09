@@ -54,6 +54,15 @@ export async function POST(request: Request) {
     prisma.referral.findMany({ where: { referrerId: user.id } }),
   ]);
 
+  // Règle métier : l'utilisateur doit avoir pris au moins un niveau (investissement)
+  // pour pouvoir retirer, même si ses gains viennent uniquement du parrainage.
+  if (investments.length === 0) {
+    return NextResponse.json<ApiError>(
+      { error: "Vous devez avoir souscrit à au moins un plan d'investissement pour effectuer un retrait." },
+      { status: 403 }
+    );
+  }
+
   const totalRemb = investments.reduce((s, i) => s + i.remb, 0);
   const completedGains = investments
     .filter((i) => i.status === "completed")

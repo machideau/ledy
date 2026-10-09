@@ -5,7 +5,7 @@ export type PlanName = "Starter" | "Argent" | "Or" | "Premium";
 export type PaymentMethod = "flooz" | "tmoney";
 export type InvestmentStatus = "active" | "completed";
 export type ReferralStatus = "pending" | "paid";
-export type WithdrawalStatus = "pending" | "paid";
+export type WithdrawalStatus = "pending" | "paid" | "cancelled";
 
 export interface Plan {
   id: PlanId;
