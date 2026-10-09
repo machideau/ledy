@@ -20,7 +20,7 @@ function AuthContent() {
   const router = useRouter();
 
   const [mode, setMode] = useState<'login' | 'register'>(
-    searchParams.get('register') === '1' ? 'register' : 'login'
+    searchParams.get('register') === '1' || !!searchParams.get('ref') ? 'register' : 'login'
   );
   const planParam    = searchParams.get('plan') || '';
   const selectedPlan = PLAN_LABELS[planParam]
@@ -29,7 +29,7 @@ function AuthContent() {
 
   const [phone,        setPhone]        = useState('');
   const [password,     setPassword]     = useState('');
-  const [referralCode, setReferralCode] = useState('');
+  const [referralCode, setReferralCode] = useState(searchParams.get('ref') ?? '');
   const [showPass,     setShowPass]     = useState(false);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');

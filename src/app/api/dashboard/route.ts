@@ -1,15 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { maskPhone, REFERRAL_COMMISSION } from "@/lib/plans";
 import type { DashboardData, ApiError } from "@/lib/types";
 
 // GET /api/dashboard — aggregated data for the dashboard page
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json<ApiError>({ error: "Non authentifié." }, { status: 401 });
   }
+
+  // Build referral link from the actual request origin so it works on any domain.
+  const origin = request.nextUrl.origin;
 
   const [investments, referrals] = await Promise.all([
     prisma.investment.findMany({
@@ -66,6 +69,6 @@ export async function GET() {
       status: ref.status as "pending" | "paid",
       createdAt: ref.createdAt.toISOString(),
     })),
-    referralLink: `https://leed.tg/ref/${user.referralCode}`,
+    referralLink: `${origin}/auth?ref=${user.referralCode}`,
   });
 }

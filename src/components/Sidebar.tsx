@@ -48,17 +48,22 @@ export default function Sidebar({ userPhone: phoneProp, walletBalance: balancePr
 
   // Fetch real user data if not passed via props
   useEffect(() => {
-    if (phoneProp && balanceProp !== undefined) return;
     let cancelled = false;
 
     (async () => {
       try {
-        const data = await api.dashboard();
-        if (cancelled) return;
-        if (!phoneProp) setUserPhone(data.user.phone);
-        if (balanceProp === undefined) setWalletBalance(data.walletBalance);
-        // Fetch role from /api/auth/me
-        const me = await api.me();
+        // Always fetch the role (needed for admin link visibility)
+        const mePromise = api.me();
+
+        // Only fetch dashboard data if not provided via props
+        if (!phoneProp || balanceProp === undefined) {
+          const data = await api.dashboard();
+          if (cancelled) return;
+          if (!phoneProp) setUserPhone(data.user.phone);
+          if (balanceProp === undefined) setWalletBalance(data.walletBalance);
+        }
+
+        const me = await mePromise;
         if (!cancelled) setIsAdmin((me as unknown as { role?: string }).role === 'douyin');
       } catch (e) {
         if (e instanceof ApiClientError && e.status === 401) return;
