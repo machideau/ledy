@@ -10,10 +10,10 @@ import { formatPhone, formatDate, fmt } from '@/lib/format';
 import type { ReferralDTO } from '@/lib/types';
 
 const planStyles: Record<string, { bg: string; text: string }> = {
-  Starter: { bg: 'rgba(34, 197, 94, 0.12)', text: 'var(--leed-green)' },
-  Argent:  { bg: 'rgba(148, 163, 184, 0.15)', text: '#64748b' },
-  Or:      { bg: 'var(--leed-yellow-light)', text: 'var(--leed-yellow)' },
-  Premium: { bg: 'rgba(239, 68, 68, 0.12)',  text: 'var(--togo-red)' },
+  Starter: { bg: 'var(--green-100)',  text: 'var(--green-600)' },
+  Argent:  { bg: 'var(--bg-subtle)',  text: 'var(--text-400)' },
+  Or:      { bg: 'var(--amber-100)',  text: 'var(--amber-600)' },
+  Premium: { bg: 'var(--red-100)',    text: 'var(--red-600)' },
 };
 
 interface ReferralStats {

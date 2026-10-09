@@ -15,7 +15,7 @@ import Countdown from '@/components/Countdown';
 
 const planColors: Record<string, string> = {
   Or: 'var(--amber-600)',  Starter: 'var(--green-600)',
-  Argent: '#64748b',       Premium: 'var(--red-600)',
+  Argent: 'var(--text-400)',       Premium: 'var(--red-600)',
 };
 
 function DashboardContent() {

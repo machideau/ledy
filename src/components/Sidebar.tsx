@@ -183,7 +183,7 @@ export default function Sidebar({ userPhone: phoneProp, walletBalance: balancePr
             <div className="user-avatar">{displayPhone.slice(-2)}</div>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-900)' }}>{displayPhone}</div>
-              <div style={{ fontSize: '12px', color: 'var(--green-600)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Wallet size={11} /> {walletBalance.toLocaleString('fr-FR')} FCFA
               </div>
             </div>

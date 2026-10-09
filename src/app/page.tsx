@@ -8,9 +8,9 @@ import { fmt } from '@/lib/format';
 
 const PLAN_DISPLAY: Record<string, { color: string; bg: string; border: string }> = {
   starter: { color: 'var(--green-600)',  bg: 'var(--green-50)',  border: 'var(--green-100)'  },
-  silver:  { color: '#64748b',           bg: '#f8fafc',         border: '#e2e8f0'            },
-  gold:    { color: 'var(--amber-600)',  bg: 'var(--amber-50)', border: 'var(--amber-100)'  },
-  premium: { color: 'var(--red-600)',    bg: 'var(--red-50)',   border: 'var(--red-100)'    },
+  silver:  { color: 'var(--text-400)',   bg: 'var(--bg-subtle)', border: 'var(--border)'     },
+  gold:    { color: 'var(--amber-600)',  bg: 'var(--amber-50)',  border: 'var(--amber-100)'  },
+  premium: { color: 'var(--red-600)',    bg: 'var(--red-50)',    border: 'var(--red-100)'    },
 };
 
 const highlights = [
@@ -27,8 +27,8 @@ export default function LandingPage() {
       <nav style={{ padding: '0 32px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', background: '#fff', position: 'sticky', top: 0, zIndex: 50, boxShadow: 'var(--shadow-xs)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Image src="/logo.jpeg" alt="LEED" width={32} height={32} style={{ borderRadius: '8px' }} />
-          <span style={{ fontSize: '17px', fontWeight: 900, color: 'var(--green-600)', letterSpacing: '-0.4px' }}>LEED</span>
-          <div style={{ padding: '2px 8px', background: 'var(--green-50)', border: '1px solid var(--green-100)', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: 'var(--green-600)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '17px', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.4px' }}>LEED</span>
+          <div style={{ padding: '2px 8px', background: 'var(--primary-pale)', border: '1px solid var(--primary-light)', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TogoFlag size={12} /> Togo
           </div>
         </div>
@@ -43,13 +43,13 @@ export default function LandingPage() {
       {/* ── HERO ── */}
       <section style={{ padding: '80px 20px 64px', textAlign: 'center', maxWidth: '680px', margin: '0 auto' }}>
 
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '30px', background: 'var(--green-50)', border: '1px solid var(--green-100)', color: 'var(--green-600)', fontSize: '12.5px', fontWeight: 700, marginBottom: '24px' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '30px', background: 'var(--primary-pale)', border: '1px solid var(--primary-light)', color: 'var(--primary)', fontSize: '12.5px', fontWeight: 700, marginBottom: '24px' }}>
           <TogoFlag size={14} /> Plateforme #1 au Togo
         </div>
 
         <h1 style={{ fontSize: 'clamp(30px, 5vw, 50px)', fontWeight: 900, lineHeight: 1.1, color: 'var(--text-900)', marginBottom: '18px', letterSpacing: '-1px' }}>
           Investissez &amp; doublez<br />
-          <span style={{ color: 'var(--green-600)' }}>votre argent en 1 mois</span>
+          <span style={{ color: 'var(--primary)' }}>votre argent en 1 mois</span>
         </h1>
 
         <p style={{ fontSize: '16px', color: 'var(--text-500)', lineHeight: 1.7, marginBottom: '36px' }}>
@@ -69,7 +69,7 @@ export default function LandingPage() {
         <div className="grid-3" style={{ marginBottom: '44px' }}>
           {highlights.map(({ icon: Icon, label, sub }) => (
             <div key={label} style={{ background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '18px 12px', textAlign: 'center' }}>
-              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--green-50)', border: '1px solid var(--green-100)', color: 'var(--green-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--primary-pale)', border: '1px solid var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
                 <Icon size={18} />
               </div>
               <div style={{ fontWeight: 800, fontSize: '15px', color: 'var(--text-900)', marginBottom: '3px' }}>{label}</div>

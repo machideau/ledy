@@ -20,7 +20,7 @@ const PLAN_ICONS: Record<string, typeof TrendingUp> = {
 
 const PLAN_STYLES: Record<string, { color: string; bg: string; border: string; tag: string }> = {
   starter: { color: 'var(--green-600)',  bg: 'var(--green-50)',  border: 'var(--green-100)',  tag: 'Pour débuter'    },
-  silver:  { color: '#64748b',           bg: '#f8fafc',          border: '#e2e8f0',            tag: 'Populaire'       },
+  silver:  { color: 'var(--text-400)',   bg: 'var(--bg-subtle)', border: 'var(--border)',     tag: 'Populaire'       },
   gold:    { color: 'var(--amber-600)',  bg: 'var(--amber-50)',  border: 'var(--amber-100)',  tag: 'Meilleur choix'  },
   premium: { color: 'var(--red-600)',    bg: 'var(--red-50)',    border: 'var(--red-100)',    tag: 'Maximum profit'  },
 };
@@ -130,13 +130,13 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
                   {(['flooz', 'tmoney'] as const).map(m => (
                     <button key={m} onClick={() => setPayMethod(m)} style={{
                       flex: 1, padding: '10px', borderRadius: 'var(--r-md)', cursor: 'pointer',
-                      border: `1.5px solid ${payMethod === m ? 'var(--green-600)' : 'var(--border)'}`,
-                      background: payMethod === m ? 'var(--green-50)' : '#fff',
-                      color: payMethod === m ? 'var(--green-600)' : 'var(--text-500)',
+                      border: `1.5px solid ${payMethod === m ? 'var(--primary)' : 'var(--border)'}`,
+                      background: payMethod === m ? 'var(--primary-pale)' : 'var(--bg-card)',
+                      color: payMethod === m ? 'var(--primary)' : 'var(--text-500)',
                       fontWeight: 700, fontSize: '13px', fontFamily: 'inherit',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       transition: 'all 0.15s',
-                      boxShadow: payMethod === m ? '0 0 0 3px rgba(22,163,74,0.1)' : 'none',
+                      boxShadow: payMethod === m ? '0 0 0 3px rgba(217,119,87,0.12)' : 'none',
                     }}>
                       <Smartphone size={13} />
                       {m === 'flooz' ? 'Flooz (Togocel)' : 'T-Money (Moov)'}
@@ -169,29 +169,29 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
             {/* ETAPE 2 — création du paiement */}
           {step === 'creating' && (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--green-50)', border: '2px solid var(--green-100)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Smartphone size={28} style={{ color: 'var(--green-600)' }} />
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--primary-pale)', border: '2px solid var(--primary-light)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Smartphone size={28} style={{ color: 'var(--primary)' }} />
               </div>
               <h3 style={{ fontSize: '17px', fontWeight: 800, marginBottom: '10px' }}>Création du paiement…</h3>
               <p style={{ color: 'var(--text-500)', fontSize: '13.5px', lineHeight: 1.6 }}>
                 Préparation de votre lien de paiement Mobile Money.
               </p>
-              <div style={{ marginTop: '28px', display: 'inline-block', width: '40px', height: '40px', border: '3px solid var(--green-100)', borderTopColor: 'var(--green-600)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <div style={{ marginTop: '28px', display: 'inline-block', width: '40px', height: '40px', border: '3px solid var(--primary-light)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             </div>
           )}
 
           {/* ETAPE 3 — redirection */}
           {step === 'redirecting' && (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--green-50)', border: '2px solid var(--green-100)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Smartphone size={28} style={{ color: 'var(--green-600)' }} />
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--primary-pale)', border: '2px solid var(--primary-light)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Smartphone size={28} style={{ color: 'var(--primary)' }} />
               </div>
               <h3 style={{ fontSize: '17px', fontWeight: 800, marginBottom: '10px' }}>Redirection en cours…</h3>
               <p style={{ color: 'var(--text-500)', fontSize: '13.5px', lineHeight: 1.6 }}>
                 Vous allez être redirigé vers la page de paiement sécurisée.<br />
                 Confirmez le paiement de <strong style={{ color: 'var(--text-900)' }}>{fmt(plan.amount)} FCFA</strong> sur votre téléphone.
               </p>
-              <div style={{ marginTop: '28px', display: 'inline-block', width: '40px', height: '40px', border: '3px solid var(--green-100)', borderTopColor: 'var(--green-600)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <div style={{ marginTop: '28px', display: 'inline-block', width: '40px', height: '40px', border: '3px solid var(--primary-light)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             </div>
           )}
 
@@ -229,7 +229,7 @@ export default function InvestPage() {
           <div className="page-header">
             <div>
               <h1 className="page-title">
-                Investir <TrendingUp size={22} style={{ color: 'var(--green-600)' }} />
+                Investir <TrendingUp size={22} style={{ color: 'var(--primary)' }} />
               </h1>
               <p className="page-subtitle">Choisissez votre plan · 50 % remboursé immédiatement · Mise x2 en 1 mois</p>
             </div>
