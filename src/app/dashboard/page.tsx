@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import TogoFlag from '@/components/TogoFlag';
+
 import {
   TrendingUp, Users, Wallet, Clock, CheckCircle2, ArrowRight, Copy, Zap, CreditCard, User,
 } from 'lucide-react';
@@ -94,7 +94,7 @@ function DashboardContent() {
           <div className="page-header">
             <div>
               <h1 className="page-title">
-                Tableau de bord <TogoFlag size={22} />
+                Tableau de bord
               </h1>
               <p className="page-subtitle">Bienvenue ! Voici un résumé de votre activité.</p>
             </div>

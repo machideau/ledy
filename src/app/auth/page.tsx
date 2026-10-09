@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Phone, Lock, Eye, EyeOff, ArrowRight, Zap, TrendingUp, Users, Smartphone, Gift, AlertTriangle } from 'lucide-react';
-import TogoFlag from '@/components/TogoFlag';
+
 import { api, ApiClientError } from '@/lib/api';
 import { PLAN_LABELS } from '@/lib/plans';
 
@@ -61,7 +61,6 @@ function AuthContent() {
 
   return (
     <div className="auth-layout">
-      <div className="togo-stripe" />
 
       {/* ── PANNEAU GAUCHE ── */}
       <div className="auth-left">
@@ -178,7 +177,7 @@ function AuthContent() {
                 display: 'inline-flex', alignItems: 'center', gap: '5px',
                 color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600,
               }}>
-                <TogoFlag size={13} /> +228
+                +228
               </span>
               <input
                 className="form-input" style={{ paddingLeft: '82px' }}

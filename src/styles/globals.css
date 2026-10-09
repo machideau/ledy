@@ -1100,13 +1100,7 @@ img { display: block; max-width: 100%; }
   background: var(--bg-card);
   position: relative;
 }
-.togo-stripe {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #006a4e 20%, #ffce00 20% 40%, #dc2626 40% 60%, #ffce00 60% 80%, #006a4e 80%);
-  z-index: 10;
-}
+
 .auth-left {
   flex: 1;
   background: var(--primary-pale);

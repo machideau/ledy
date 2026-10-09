@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Zap, TrendingUp, Users, CheckCircle2 } from 'lucide-react';
-import TogoFlag from '@/components/TogoFlag';
+
 import { PLANS } from '@/lib/plans';
 import { fmt } from '@/lib/format';
 

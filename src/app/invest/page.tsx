@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
-import TogoFlag from '@/components/TogoFlag';
+
 import {
   TrendingUp, CheckCircle2, X, ArrowRight, Zap,
   Award, Sparkles, Gift, Clock, CreditCard, AlertTriangle, Smartphone,
@@ -147,7 +147,7 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
                 <label className="form-label">Votre numéro {payMethod === 'flooz' ? 'Flooz' : 'T-Money'}</label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--text-400)', fontSize: '13px', fontWeight: 600 }}>
-                    <TogoFlag size={13} /> +228
+                    +228
                   </span>
                   <input className="form-input" style={{ paddingLeft: '82px' }} type="tel" placeholder="XX XX XX XX"
                     value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} maxLength={8} />

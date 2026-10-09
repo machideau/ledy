@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
-import TogoFlag from '@/components/TogoFlag';
+
 import { User, Phone, Shield, CheckCircle2, Lock, Settings, AlertTriangle } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
 import { formatPhone } from '@/lib/format';
@@ -142,7 +142,7 @@ export default function SettingsPage() {
                       display: 'inline-flex', alignItems: 'center', gap: '5px',
                       color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600,
                     }}>
-                      <TogoFlag size={13} /> +228
+                      +228
                     </span>
                     <input className="form-input" style={{ paddingLeft: '82px' }} type="tel" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} maxLength={8} />
                   </div>

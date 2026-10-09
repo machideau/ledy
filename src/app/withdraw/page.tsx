@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
-import TogoFlag from '@/components/TogoFlag';
+
 import { Wallet, ArrowDownToLine, CheckCircle2, Clock, CreditCard, Smartphone, AlertTriangle, XCircle, TrendingUp } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
 import { formatDate, fmt } from '@/lib/format';
@@ -169,7 +169,7 @@ export default function WithdrawPage() {
                         display: 'inline-flex', alignItems: 'center', gap: '5px',
                         color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600,
                       }}>
-                        <TogoFlag size={13} /> +228
+                        +228
                       </span>
                       <input
                         className="form-input" style={{ paddingLeft: '82px' }}
