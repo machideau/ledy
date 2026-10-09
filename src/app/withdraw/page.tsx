@@ -139,7 +139,7 @@ export default function WithdrawPage() {
                           }}
                         >
                           <Smartphone size={13} />
-                          {m === 'flooz' ? 'Flooz (Togocel)' : 'T-Money (Moov)'}
+                          {m === 'flooz' ? 'Flooz (Moov)' : 'Mixx (Yas)'}
                         </button>
                       ))}
                     </div>

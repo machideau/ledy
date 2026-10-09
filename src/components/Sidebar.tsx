@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import React from 'react';
 import {
   LayoutDashboard, TrendingUp, Users, ArrowDownToLine,
-  Settings, LogOut, Wallet, Menu, X,
+  Settings, LogOut, Wallet, Menu, X, ShieldCheck,
 } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
 import { useRouter } from 'next/navigation';
@@ -25,6 +25,7 @@ const secondaryNav = [
 interface SidebarProps {
   userPhone?: string;
   walletBalance?: number;
+  isAdmin?: boolean;
 }
 
 // Format 8-digit phone "90123456" → "+228 90 12 34 56"
@@ -37,12 +38,13 @@ function formatPhone(phone: string): string {
   return phone;
 }
 
-export default function Sidebar({ userPhone: phoneProp, walletBalance: balanceProp }: SidebarProps = {}) {
+export default function Sidebar({ userPhone: phoneProp, walletBalance: balanceProp, isAdmin: isAdminProp }: SidebarProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [userPhone, setUserPhone] = useState(phoneProp || '');
   const [walletBalance, setWalletBalance] = useState(balanceProp ?? 0);
+  const [isAdmin, setIsAdmin] = useState(isAdminProp ?? false);
 
   // Fetch real user data if not passed via props
   useEffect(() => {
@@ -55,6 +57,9 @@ export default function Sidebar({ userPhone: phoneProp, walletBalance: balancePr
         if (cancelled) return;
         if (!phoneProp) setUserPhone(data.user.phone);
         if (balanceProp === undefined) setWalletBalance(data.walletBalance);
+        // Fetch role from /api/auth/me
+        const me = await api.me();
+        if (!cancelled) setIsAdmin((me as unknown as { role?: string }).role === 'douyin');
       } catch (e) {
         if (e instanceof ApiClientError && e.status === 401) return;
         // Non-auth error — keep defaults
@@ -121,6 +126,16 @@ export default function Sidebar({ userPhone: phoneProp, walletBalance: balancePr
             </Link>
           ))}
 
+          {isAdmin && (
+            <Link
+              href="/douyin"
+              className={`nav-item ${pathname === '/douyin' ? 'active' : ''}`}
+              style={{ color: 'var(--primary)', fontWeight: 700 }}
+            >
+              <ShieldCheck size={15} /> Admin
+            </Link>
+          )}
+
           <div className="navbar-wallet">
             <Wallet size={13} />
             <span>{walletBalance.toLocaleString('fr-FR')} FCFA</span>
@@ -176,6 +191,16 @@ export default function Sidebar({ userPhone: phoneProp, walletBalance: balancePr
             <Icon size={16} /> {label}
           </Link>
         ))}
+
+        {isAdmin && (
+          <Link
+            href="/douyin"
+            className={`nav-item ${pathname === '/douyin' ? 'active' : ''}`}
+            style={{ color: 'var(--primary)', fontWeight: 700 }}
+          >
+            <ShieldCheck size={16} /> Admin
+          </Link>
+        )}
 
         {/* Solde + déco */}
         <div className="mobile-wallet-row">

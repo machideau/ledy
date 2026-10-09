@@ -9,10 +9,11 @@ export async function GET() {
     return NextResponse.json<ApiError>({ error: "Non authentifié." }, { status: 401 });
   }
 
-  return NextResponse.json<UserPublic>({
+  return NextResponse.json({
     id: user.id,
     phone: user.phone,
     name: user.name,
     referralCode: user.referralCode,
-  });
+    role: user.role,
+  } satisfies UserPublic & { role: string });
 }

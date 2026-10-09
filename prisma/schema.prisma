@@ -20,6 +20,7 @@ model User {
   name         String?                   // optional full name
   referralCode String   @unique          // LEED-XXXXXX
   referredBy   String?                  // referral code of sponsor
+  role         String   @default("user") // user | douyin
   createdAt    DateTime @default(now())
 
   investments  Investment[]
