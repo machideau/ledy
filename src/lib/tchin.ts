@@ -46,14 +46,23 @@ export async function createPayment(
     body: JSON.stringify({ ...payload, env }),
   });
 
-  const data = await res.json().catch(() => ({}));
+  const text = await res.text().catch(() => "");
+  let data: Record<string, unknown> = {};
+  try { data = JSON.parse(text); } catch { /* not JSON */ }
 
   if (!res.ok || !data.success) {
-    const msg = data.message ?? data.error ?? `Tchin: HTTP ${res.status}`;
+    console.error("[tchin] createPayment failed", {
+      httpStatus: res.status,
+      body: text.slice(0, 500),
+      pubKeyPresent: !!process.env.PUBLIC_TCHIN_KEY,
+      privKeyPresent: !!process.env.PRIVATE_TCHIN_KEY,
+      env,
+    });
+    const msg = (data.message as string) ?? (data.error as string) ?? `Tchin HTTP ${res.status}: ${text.slice(0, 200)}`;
     throw new Error(msg);
   }
 
-  return data as TchinPaymentResponse;
+  return data as unknown as TchinPaymentResponse;
 }
 
 // ── Webhook payload types ─────────────────────────────────────────────────────

@@ -27,8 +27,9 @@ export const loginSchema = z.object({
 
 export const investSchema = z.object({
   planId: z.enum(["starter", "silver", "gold", "premium"]),
-  paymentMethod: z.enum(["flooz", "tmoney"]),
-  phone: phoneSchema,
+  // paymentMethod et phone sont optionnels : c'est la page Tchin qui les collecte
+  paymentMethod: z.enum(["flooz", "tmoney"]).optional(),
+  phone: phoneSchema.optional(),
 });
 
 export const withdrawSchema = z.object({

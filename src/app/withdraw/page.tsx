@@ -82,7 +82,7 @@ export default function WithdrawPage() {
               <h1 className="page-title">
                 Retrait <CreditCard size={22} style={{ color: 'var(--leed-green)' }} />
               </h1>
-              <p className="page-subtitle">Retirez vos gains sur Flooz ou T-Money</p>
+              <p className="page-subtitle">Retirez vos gains sur Flooz ou Mixx by Yas</p>
             </div>
           </div>
 
@@ -154,7 +154,7 @@ export default function WithdrawPage() {
                           }}
                         >
                           <Smartphone size={13} />
-                          {m === 'flooz' ? 'Flooz (Moov)' : 'Mixx (Yas)'}
+                          {m === 'flooz' ? 'Flooz (Moov)' : 'Mixx by Yas (Togocel)'}
                         </button>
                       ))}
                     </div>

@@ -10,6 +10,7 @@ import type { ApiError } from "@/lib/types";
 // Creates a Tchin payment for a given plan.
 // Returns { payment_url, token } — the client redirects the user to payment_url.
 // After payment, Tchin redirects back to return_url with ?status=success&token=…
+// Note: paymentMethod and phone are collected by the Tchin payment page, not here.
 export async function POST(request: Request) {
   const user = await requireUser();
 
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     return NextResponse.json<ApiError>({ error: msg }, { status: 400 });
   }
 
-  const { planId, paymentMethod, phone } = parsed.data;
+  const { planId } = parsed.data;
   const plan = PLAN_BY_ID[planId];
 
   if (!plan) {
@@ -55,9 +56,9 @@ export async function POST(request: Request) {
       tchinToken: tchinResponse.token,
       userId: user.id,
       planId,
-      payMethod: paymentMethod,
-      phone,
-      status: "pending",
+      payMethod: "tchin",   // collected by Tchin page
+      phone:     "unknown", // collected by Tchin page
+      status:    "pending",
     },
   });
 

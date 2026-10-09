@@ -106,7 +106,7 @@ export const api = {
     }),
 
   // ── Tchin payment ──────────────────────────
-  tchinPay: (body: { planId: string; paymentMethod: string; phone: string }) =>
+  tchinPay: (body: { planId: string }) =>
     request<{ token: string; payment_url: string; env: string }>("/api/tchin/pay", {
       method: "POST",
       body: JSON.stringify(body),

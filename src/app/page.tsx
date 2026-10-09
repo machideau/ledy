@@ -97,7 +97,7 @@ export default function LandingPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '20px' }}>
           {[
             { name: 'Kofi A.',   city: 'Lomé',     text: 'J\'ai souscrit au plan Or. J\'ai reçu 7 500 FCFA en moins de 24 h, et le reste à J+30 comme promis.' },
-            { name: 'Akosua M.', city: 'Kara',     text: 'Simple et rapide. Le paiement se fait en 2 minutes via T-Money. Je recommande à toute ma famille.' },
+            { name: 'Akosua M.', city: 'Kara',     text: 'Simple et rapide. Le paiement se fait en 2 minutes via Mixx by Yas. Je recommande à toute ma famille.' },
             { name: 'Edem K.',   city: 'Tsévié',   text: 'Grâce au parrainage j\'ai gagné 3 500 FCFA supplémentaires ce mois-ci. Vraiment une bonne plateforme.' },
           ].map(({ name, city, text }) => (
             <div key={name} style={{ background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '18px 16px' }}>
@@ -143,14 +143,14 @@ export default function LandingPage() {
               step: '02', icon: Zap,
               color: 'var(--amber-600)', bg: 'var(--amber-50)', border: 'var(--amber-100)',
               title: '50 % remboursé immédiatement',
-              desc: 'Dès que votre paiement Flooz ou T-Money est confirmé, la moitié vous est reversée sous 24 h.',
+              desc: 'Dès que votre paiement Flooz ou Mixx by Yas est confirmé, la moitié vous est reversée sous 24 h.',
               detail: 'Remboursement garanti',
             },
             {
               step: '03', icon: TrendingUp,
               color: 'var(--primary)', bg: 'var(--primary-pale)', border: 'var(--primary-light)',
               title: 'Votre mise x2 en 30 jours',
-              desc: 'À J+30, votre dépôt initial vous est rendu en double. Retirez via Flooz ou T-Money.',
+              desc: 'À J+30, votre dépôt initial vous est rendu en double. Retirez via Flooz ou Mixx by Yas.',
               detail: 'J+30 garanti',
             },
           ].map(({ step, icon: Icon, color, bg, border, title, desc, detail }) => (
@@ -186,7 +186,7 @@ export default function LandingPage() {
             Les 4 Plans d&apos;Investissement
           </h2>
           <p style={{ color: 'var(--text-400)', fontSize: '14px', marginTop: '6px' }}>
-            Paiement rapide via Flooz ou T-Money
+            Paiement rapide via Flooz ou Mixx by Yas
           </p>
         </div>
 

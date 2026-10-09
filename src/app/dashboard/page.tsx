@@ -421,7 +421,7 @@ function DashboardContent() {
 
             <div className="grid-3">
               {[
-                { step: '01', icon: CreditCard, color: 'var(--green-600)', bg: 'var(--green-50)',  border: 'var(--green-100)', title: 'Vous déposez',     desc: 'Choisissez votre plan et payez via Flooz ou T-Money.', detail: '2 000 à 30 000 FCFA' },
+                { step: '01', icon: CreditCard, color: 'var(--green-600)', bg: 'var(--green-50)',  border: 'var(--green-100)', title: 'Vous déposez',     desc: 'Choisissez votre plan et payez via Flooz ou Mixx by Yas.', detail: '2 000 à 30 000 FCFA' },
                 { step: '02', icon: Zap,        color: 'var(--amber-600)', bg: 'var(--amber-50)',  border: 'var(--amber-100)', title: '50 % remboursé',   desc: 'La moitié de votre dépôt est reversée immédiatement.',  detail: 'Dans les 24 h'     },
                 { step: '03', icon: TrendingUp, color: 'var(--red-600)',   bg: 'var(--red-50)',    border: 'var(--red-100)',   title: 'Mise x2 en 1 mois', desc: 'Votre dépôt initial vous est rendu en double.',          detail: 'J+30 garanti'      },
               ].map(({ step, icon: Icon, color, bg, border, title, desc, detail }) => (
