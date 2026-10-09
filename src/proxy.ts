@@ -38,6 +38,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Run proxy only on page routes, skip API/static/_next
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|logo.jpeg).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

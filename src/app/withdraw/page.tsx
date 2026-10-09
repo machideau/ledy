@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/Sidebar';
+import Navbar from '@/components/Navbar';
 
 import { Wallet, ArrowDownToLine, CheckCircle2, Clock, CreditCard, Smartphone, AlertTriangle, XCircle, TrendingUp } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
@@ -60,7 +60,7 @@ export default function WithdrawPage() {
   if (loadingData) {
     return (
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
             Chargement…
@@ -72,7 +72,7 @@ export default function WithdrawPage() {
 
   return (
     <div className="app-layout">
-      <Sidebar walletBalance={balance} />
+      <Navbar walletBalance={balance} />
 
       <main className="main-content">
         <div className="page-container">

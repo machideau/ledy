@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/Sidebar';
+import Navbar from '@/components/Navbar';
 import {
   Copy, CheckCircle2, Share2, Users, TrendingUp, Clock, Gift,
   Smartphone, Globe, MessageSquare, User, Target, DollarSign, Search,
@@ -70,7 +70,7 @@ export default function ReferralPage() {
   if (loading) {
     return (
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
             Chargement…
@@ -83,7 +83,7 @@ export default function ReferralPage() {
   if (loadErr) {
     return (
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--red-600)' }}>
             {loadErr}
@@ -95,7 +95,7 @@ export default function ReferralPage() {
 
   return (
     <div className="app-layout">
-      <Sidebar />
+      <Navbar />
 
       <main className="main-content">
         <div className="page-container">

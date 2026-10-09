@@ -25,42 +25,46 @@ export async function POST(request: Request) {
     );
   }
 
-  // Validate referral code if provided
-  let sponsor: { id: string } | null = null;
-  if (referralCode) {
-    sponsor = await prisma.user.findUnique({
-      where: { referralCode: referralCode.toUpperCase() },
-      select: { id: true },
-    });
-    if (!sponsor) {
-      return NextResponse.json<ApiError>(
-        { error: "Code de parrainage invalide." },
-        { status: 400 }
-      );
-    }
+  // referralCode is required — validate it against the DB
+  const sponsor = await prisma.user.findUnique({
+    where: { referralCode: referralCode.toUpperCase() },
+    select: { id: true },
+  });
+  if (!sponsor) {
+    return NextResponse.json<ApiError>(
+      { error: "Code de parrainage invalide." },
+      { status: 400 }
+    );
   }
 
   const hashedPassword = await hashPassword(password);
+
+  // Generate a unique referral code (retry on collision — very rare but possible)
+  let newReferralCode = generateReferralCode();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const taken = await prisma.user.findUnique({ where: { referralCode: newReferralCode }, select: { id: true } });
+    if (!taken) break;
+    newReferralCode = generateReferralCode();
+  }
+
   const user = await prisma.user.create({
     data: {
       phone,
       password: hashedPassword,
-      referralCode: generateReferralCode(),
-      referredBy: sponsor ? referralCode!.toUpperCase() : null,
+      referralCode: newReferralCode,
+      referredBy: referralCode.toUpperCase(),
     },
   });
 
-  // If referred, create a pending referral record for the sponsor
-  if (sponsor) {
-    await prisma.referral.create({
-      data: {
-        referrerId: sponsor.id,
-        referredPhone: phone,
-        commission: 500,
-        status: "pending",
-      },
-    });
-  }
+  // Create a pending referral record for the sponsor
+  await prisma.referral.create({
+    data: {
+      referrerId: sponsor.id,
+      referredPhone: phone,
+      commission: 500,
+      status: "pending",
+    },
+  });
 
   const token = await signToken(user.id);
 

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/Sidebar';
+import Navbar from '@/components/Navbar';
 
 import { User, Phone, Shield, CheckCircle2, Lock, Settings, AlertTriangle } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
@@ -78,7 +78,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
             Chargement…
@@ -92,7 +92,7 @@ export default function SettingsPage() {
 
   return (
     <div className="app-layout">
-      <Sidebar userPhone={displayPhone} />
+      <Navbar userPhone={displayPhone} />
 
       <main className="main-content">
         <div className="page-container">

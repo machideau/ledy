@@ -36,6 +36,10 @@ export async function GET(request: NextRequest) {
     .reduce((s, r) => s + r.commission, 0);
   const pendingReferrals = referrals.filter((r) => r.status === "pending").length;
   // Wallet = remboursements immédiats + gains J+30 débloqués + commissions parrainage
+  // Note: the balance is always derived from source records rather than stored in a
+  // dedicated column. This is intentionally safe (no balance drift) but re-scans all
+  // rows on every request. At scale, consider a denormalised balance on User updated
+  // atomically inside Prisma transactions.
   const walletBalance = totalRemb + completedGains + referralEarnings;
 
   return NextResponse.json<DashboardData>({

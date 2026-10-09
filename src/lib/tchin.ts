@@ -69,10 +69,19 @@ export interface TchinWebhookPayload {
 }
 
 // Verify that a webhook came from Tchin.
-// Currently Tchin doesn't publish a shared secret for HMAC — we validate by:
-//   1. Checking the token exists in our PendingPayment table
-//   2. Checking mode matches our TCHIN_ENV
-// Update this function when Tchin adds a signature scheme.
+//
+// ⚠️  SECURITY NOTE — two-layer defence:
+//   Layer 1 (current): env-mode check — rejects cross-environment replays
+//     (test webhook hitting a live server and vice-versa).
+//   Layer 2 (TODO): HMAC-SHA256 signature — Tchin does not yet publish a
+//     shared-secret spec. When they do, add it here:
+//       const sig = request.headers.get("X-Tchin-Signature");
+//       const expected = crypto.createHmac("sha256", process.env.TCHIN_WEBHOOK_SECRET!)
+//         .update(rawBody).digest("hex");
+//       if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+//
+// The database check (token exists in PendingPayment) is the final line of
+// defence and is handled in the webhook route itself.
 export function isWebhookLegit(payload: TchinWebhookPayload): boolean {
   const expectedMode = process.env.TCHIN_ENV === "live" ? "live" : "test";
   // Reject test webhooks hitting a live env and vice-versa

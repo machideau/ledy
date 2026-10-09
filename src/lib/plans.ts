@@ -27,7 +27,11 @@ export const PLAN_LABELS: Record<string, string> = Object.fromEntries(
 export const REFERRAL_COMMISSION = 500; // FCFA per referral who invests
 export const INVESTMENT_DURATION_DAYS = 30;
 
-// Helper: generate a unique referral code LEED-XX1234
+// Helper: generate a referral code candidate LEED-XX1234
+// ⚠️  Collisions are possible. Call this inside a retry loop:
+//   let code: string;
+//   do { code = generateReferralCode(); }
+//   while (await prisma.user.findUnique({ where: { referralCode: code } }));
 export function generateReferralCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const digits = "0123456789";
@@ -37,10 +41,11 @@ export function generateReferralCode(): string {
   return code;
 }
 
-// Helper: generate a withdrawal reference WD-XXXX
+// Helper: generate a collision-resistant withdrawal reference.
+// Uses 6 hex chars from crypto.randomUUID() → ~16 billion combinations.
 export function generateWithdrawalRef(): string {
-  const num = String(Math.floor(Math.random() * 9000) + 1000);
-  return `WD-${num}`;
+  const hex = crypto.randomUUID().replace(/-/g, "").slice(0, 6).toUpperCase();
+  return `WD-${hex}`;
 }
 
 // Helper: mask a phone number for privacy in referral lists

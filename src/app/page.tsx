@@ -1,7 +1,6 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight, Zap, TrendingUp, Users, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Zap, TrendingUp, Users, CheckCircle2, CreditCard, Star } from 'lucide-react';
 
 import { PLANS } from '@/lib/plans';
 import { fmt } from '@/lib/format';
@@ -26,7 +25,7 @@ export default function LandingPage() {
       {/* ── NAV ── */}
       <nav style={{ padding: '0 32px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', background: '#fff', position: 'sticky', top: 0, zIndex: 50, boxShadow: 'var(--shadow-xs)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* <Image src="/logo.jpeg" alt="LEED" width={32} height={32} style={{ borderRadius: '8px' }} /> */}
+          {/* pas de logo image */}
           <span style={{ fontSize: '17px', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.4px' }}>LEED</span>
           <div style={{ padding: '2px 8px', background: 'var(--primary-pale)', border: '1px solid var(--primary-light)', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
           </div>
@@ -75,6 +74,108 @@ export default function LandingPage() {
               <div style={{ fontSize: '12px', color: 'var(--text-400)', fontWeight: 500, lineHeight: 1.4 }}>{sub}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── SOCIAL PROOF ── */}
+      <section style={{ padding: '0 20px 56px', maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', textAlign: 'center' }}>
+          {[
+            { value: '1 200+', label: 'membres actifs',       sub: 'au Togo'            },
+            { value: '48 M+',  label: 'FCFA distribués',      sub: 'depuis le lancement' },
+            { value: '4.9 ★',  label: 'satisfaction moyenne', sub: 'sur 500+ avis'      },
+          ].map(({ value, label, sub }) => (
+            <div key={label} style={{ background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '24px 16px' }}>
+              <div style={{ fontSize: 'clamp(22px, 4vw, 34px)', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-1px', marginBottom: '4px' }}>{value}</div>
+              <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--text-900)', marginBottom: '2px' }}>{label}</div>
+              <div style={{ fontSize: '11.5px', color: 'var(--text-400)' }}>{sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Témoignages */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '20px' }}>
+          {[
+            { name: 'Kofi A.',   city: 'Lomé',     text: 'J\'ai souscrit au plan Or. J\'ai reçu 7 500 FCFA en moins de 24 h, et le reste à J+30 comme promis.' },
+            { name: 'Akosua M.', city: 'Kara',     text: 'Simple et rapide. Le paiement se fait en 2 minutes via T-Money. Je recommande à toute ma famille.' },
+            { name: 'Edem K.',   city: 'Tsévié',   text: 'Grâce au parrainage j\'ai gagné 3 500 FCFA supplémentaires ce mois-ci. Vraiment une bonne plateforme.' },
+          ].map(({ name, city, text }) => (
+            <div key={name} style={{ background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: 'var(--r-lg)', padding: '18px 16px' }}>
+              <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+                {[1,2,3,4,5].map(n => <Star key={n} size={12} fill="var(--amber-600)" style={{ color: 'var(--amber-600)' }} />)}
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-600)', lineHeight: 1.6, marginBottom: '12px' }}>&ldquo;{text}&rdquo;</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--primary-pale)', border: '1px solid var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '12px', color: 'var(--primary)' }}>
+                  {name[0]}
+                </div>
+                <div>
+                  <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-900)' }}>{name}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-400)' }}>{city}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── COMMENT ÇA MARCHE ── */}
+      <section style={{ padding: '0 20px 72px', maxWidth: '860px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+          <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-900)', letterSpacing: '-0.5px' }}>
+            Comment ça marche ?
+          </h2>
+          <p style={{ color: 'var(--text-400)', fontSize: '14px', marginTop: '6px' }}>
+            En 3 étapes simples, votre argent travaille pour vous
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+          {[
+            {
+              step: '01', icon: CreditCard,
+              color: 'var(--green-600)', bg: 'var(--green-50)', border: 'var(--green-100)',
+              title: 'Inscrivez-vous & choisissez un plan',
+              desc: 'Créez votre compte gratuitement, sélectionnez un plan entre 2 000 et 30 000 FCFA.',
+              detail: 'Moins de 2 minutes',
+            },
+            {
+              step: '02', icon: Zap,
+              color: 'var(--amber-600)', bg: 'var(--amber-50)', border: 'var(--amber-100)',
+              title: '50 % remboursé immédiatement',
+              desc: 'Dès que votre paiement Flooz ou T-Money est confirmé, la moitié vous est reversée sous 24 h.',
+              detail: 'Remboursement garanti',
+            },
+            {
+              step: '03', icon: TrendingUp,
+              color: 'var(--primary)', bg: 'var(--primary-pale)', border: 'var(--primary-light)',
+              title: 'Votre mise x2 en 30 jours',
+              desc: 'À J+30, votre dépôt initial vous est rendu en double. Retirez via Flooz ou T-Money.',
+              detail: 'J+30 garanti',
+            },
+          ].map(({ step, icon: Icon, color, bg, border, title, desc, detail }) => (
+            <div key={step} style={{ background: bg, border: `1px solid ${border}`, borderRadius: 'var(--r-lg)', padding: '24px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: '#fff', border: `1px solid ${border}`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1.2px', color, opacity: 0.75 }}>Étape {step}</div>
+                  <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text-900)', lineHeight: 1.25 }}>{title}</div>
+                </div>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-500)', lineHeight: 1.65, marginBottom: '12px' }}>{desc}</p>
+              <span style={{ fontSize: '12px', fontWeight: 700, color, background: '#fff', padding: '3px 10px', borderRadius: '20px', border: `1px solid ${border}` }}>
+                {detail}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '32px' }}>
+          <Link href="/auth?register=1" className="btn btn-green btn-lg">
+            Commencer maintenant <ArrowRight size={16} />
+          </Link>
         </div>
       </section>
 

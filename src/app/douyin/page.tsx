@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
+import Navbar from '@/components/Navbar';
 import {
   Users, TrendingUp, ArrowDownToLine, BarChart3,
   CheckCircle2, Clock, XCircle, RefreshCw, Search,
@@ -271,7 +271,7 @@ export default function DouyinPage() {
   if (loading) {
     return (
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
             Chargement du panel…
@@ -284,7 +284,7 @@ export default function DouyinPage() {
   if (error) {
     return (
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--red-600)' }}>
             {error}
@@ -296,7 +296,7 @@ export default function DouyinPage() {
 
   return (
     <div className="app-layout">
-      <Sidebar />
+      <Navbar />
       <main className="main-content">
         <div className="page-container">
 

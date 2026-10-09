@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import Sidebar from '@/components/Sidebar';
+import { useState, useEffect } from 'react';
+import Navbar from '@/components/Navbar';
 
 import {
   TrendingUp, CheckCircle2, X, ArrowRight, Zap,
@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
 import { PLANS } from '@/lib/plans';
-import { fmt } from '@/lib/format';
-import type { Plan } from '@/lib/types';
+import { fmt, formatPhone } from '@/lib/format';
+import type { Plan, DashboardData } from '@/lib/types';
 
 const PLAN_ICONS: Record<string, typeof TrendingUp> = {
   starter: TrendingUp,
@@ -218,10 +218,20 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
 /* ── Page principale ── */
 export default function InvestPage() {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [dashData, setDashData] = useState<DashboardData | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.dashboard().then((d) => { if (!cancelled) setDashData(d); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="app-layout">
-      <Sidebar />
+      <Navbar
+        userPhone={dashData ? formatPhone(dashData.user.phone) : undefined}
+        walletBalance={dashData?.walletBalance}
+      />
 
       <main className="main-content">
         <div className="page-container">

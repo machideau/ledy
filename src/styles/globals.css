@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+/* Google Fonts removed — using Times New Roman (system serif) */
 
 /* ============================================================
    LEED TOGO — DESIGN SYSTEM v3 · Anthropic-inspired palette
@@ -65,8 +65,8 @@
   --navbar-h:   60px;
 
   /* ── Typographie ── */
-  --font-base:    15px;
-  --font-sans:    'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-base:    30px;
+  --font-sans:    'Times New Roman', Times, serif;
   --font-family:  var(--font-sans);
 
   /* ── Radii ── */

@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
+import Navbar from '@/components/Navbar';
 
 import {
   TrendingUp, Users, Wallet, Clock, CheckCircle2, ArrowRight, Copy, Zap, CreditCard, User,
@@ -55,7 +55,7 @@ function DashboardContent() {
   if (!data && !loadErr) {
     return (
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
             Chargement…
@@ -69,7 +69,7 @@ function DashboardContent() {
   if (loadErr && !data) {
     return (
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--red-600)' }}>
             {loadErr}
@@ -85,7 +85,7 @@ function DashboardContent() {
 
   return (
     <div className="app-layout">
-      <Sidebar userPhone={displayPhone} walletBalance={data.walletBalance} />
+      <Navbar userPhone={displayPhone} walletBalance={data.walletBalance} />
 
       <main className="main-content">
         <div className="page-container">
@@ -383,7 +383,7 @@ export default function DashboardPage() {
   return (
     <Suspense fallback={
       <div className="app-layout">
-        <Sidebar />
+        <Navbar />
         <main className="main-content">
           <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
             Chargement…

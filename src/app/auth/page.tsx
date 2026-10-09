@@ -1,19 +1,10 @@
 'use client';
 import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Phone, Lock, Eye, EyeOff, ArrowRight, Zap, TrendingUp, Users, Smartphone, Gift, AlertTriangle } from 'lucide-react';
+import { Phone, Lock, Eye, EyeOff, ArrowRight, Gift, AlertTriangle } from 'lucide-react';
 
 import { api, ApiClientError } from '@/lib/api';
 import { PLAN_LABELS } from '@/lib/plans';
-
-const features = [
-  { icon: Zap,        text: '50 % de votre dépôt remboursé immédiatement' },
-  { icon: TrendingUp, text: 'Mise doublée en 30 jours' },
-  { icon: Users,      text: '500 FCFA par filleul qui souscrit' },
-  { icon: Smartphone, text: 'Paiement via Flooz & T-Money' },
-];
 
 function AuthContent() {
   const searchParams = useSearchParams();
@@ -27,9 +18,11 @@ function AuthContent() {
     ? `Plan ${PLAN_LABELS[planParam]} (${parseInt(planParam).toLocaleString('fr-FR')} FCFA)`
     : null;
 
+  const refFromUrl = searchParams.get('ref') ?? '';
+
   const [phone,        setPhone]        = useState('');
   const [password,     setPassword]     = useState('');
-  const [referralCode, setReferralCode] = useState(searchParams.get('ref') ?? '');
+  const [referralCode, setReferralCode] = useState(refFromUrl);
   const [showPass,     setShowPass]     = useState(false);
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState('');
@@ -37,8 +30,12 @@ function AuthContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!phone || phone.length < 8)    { setError('Entrez un numéro de téléphone valide (8 chiffres).'); return; }
+    if (!phone || phone.length < 8)       { setError('Entrez un numéro de téléphone valide (8 chiffres).'); return; }
     if (!password || password.length < 4) { setError('Le mot de passe doit comporter au moins 4 caractères.'); return; }
+    if (mode === 'register' && !referralCode.trim()) {
+      setError('Le code de parrainage est obligatoire.');
+      return;
+    }
     setLoading(true);
     try {
       if (mode === 'register') {
@@ -46,91 +43,51 @@ function AuthContent() {
       } else {
         await api.login({ phone, password });
       }
-      // Check for redirect param
       const redirect = searchParams.get('redirect');
       router.push(redirect || '/dashboard');
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.message);
-      } else {
-        setError('Une erreur est survenue. Réessayez.');
-      }
+      setError(err instanceof ApiClientError ? err.message : 'Une erreur est survenue. Réessayez.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-layout">
-
-      {/* ── PANNEAU GAUCHE ── */}
-      <div className="auth-left">
-        <div style={{ maxWidth: '400px', textAlign: 'center' }}>
-          <Image
-            src="/logo.jpeg" alt="LEED Logo" width={80} height={80}
-            style={{ borderRadius: '16px', marginBottom: '20px', boxShadow: 'var(--shadow-green)' }}
-          />
-          <h1 style={{ fontSize: '32px', fontWeight: 900, marginBottom: '12px', color: 'var(--text-primary)', lineHeight: 1.15 }}>
-            Doublez votre argent<br />
-            <span style={{ color: 'var(--leed-green)' }}>en 1 mois !</span>
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.7, marginBottom: '32px' }}>
-            La plateforme d&apos;investissement communautaire dédiée aux Togolais.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
-            {features.map(({ icon: Icon, text }) => (
-              <div key={text} style={{
-                display: 'flex', alignItems: 'center', gap: '12px',
-                background: '#fff', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)', padding: '11px 14px',
-              }}>
-                <div style={{
-                  width: '30px', height: '30px', borderRadius: '8px', flexShrink: 0,
-                  background: 'var(--leed-green-pale)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Icon size={15} style={{ color: 'var(--leed-green)' }} />
-                </div>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 500 }}>{text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── PANNEAU DROIT ── */}
-      <div className="auth-right">
-        {/* Logo mobile */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '28px' }}>
-          <Image src="/logo.jpeg" alt="LEED" width={32} height={32} style={{ borderRadius: '7px' }} />
-          <span className="logo-text">LEED</span>
-        </div>
-
-        <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '4px' }}>
-          {mode === 'login' ? 'Bon retour !' : 'Créez votre compte'}
-        </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '24px' }}>
-          {mode === 'login' ? 'Connectez-vous à votre espace personnel' : 'Rejoignez des milliers de Togolais prospères'}
-        </p>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--bg-app)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px 16px',
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '400px',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--r-xl)',
+        padding: '32px 28px',
+        boxShadow: 'var(--shadow-md)',
+      }}>
 
         {/* Tabs */}
         <div style={{
           display: 'flex', gap: '4px',
-          background: 'var(--bg-tertiary)',
-          borderRadius: 'var(--radius-md)', padding: '4px',
+          background: 'var(--bg-subtle)',
+          borderRadius: 'var(--r-md)', padding: '4px',
           marginBottom: '24px',
         }}>
           {(['login', 'register'] as const).map(m => (
             <button
               key={m}
-              onClick={() => setMode(m)}
+              onClick={() => { setMode(m); setError(''); }}
               style={{
-                flex: 1, padding: '8px', borderRadius: 'var(--radius-sm)',
+                flex: 1, padding: '8px', borderRadius: 'var(--r-sm)',
                 border: 'none', cursor: 'pointer', fontFamily: 'inherit',
                 fontWeight: 700, fontSize: '13px', transition: 'all 0.2s',
                 background: mode === m ? '#fff' : 'transparent',
-                color: mode === m ? 'var(--text-primary)' : 'var(--text-muted)',
-                boxShadow: mode === m ? 'var(--shadow-sm)' : 'none',
+                color: mode === m ? 'var(--text-900)' : 'var(--text-400)',
+                boxShadow: mode === m ? 'var(--shadow-xs)' : 'none',
               }}
             >
               {m === 'login' ? 'Connexion' : 'Inscription'}
@@ -142,11 +99,11 @@ function AuthContent() {
         {mode === 'register' && selectedPlan && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'var(--leed-yellow-light)', border: '1px solid var(--border-yellow)',
-            borderRadius: 'var(--radius-md)', padding: '10px 13px', marginBottom: '16px',
+            background: 'var(--amber-50)', border: '1px solid var(--amber-100)',
+            borderRadius: 'var(--r-md)', padding: '10px 13px', marginBottom: '16px',
           }}>
-            <Gift size={15} style={{ color: 'var(--leed-yellow)', flexShrink: 0 }} />
-            <span style={{ color: 'var(--leed-yellow)', fontWeight: 700, fontSize: '13px' }}>
+            <Gift size={15} style={{ color: 'var(--amber-600)', flexShrink: 0 }} />
+            <span style={{ color: 'var(--amber-600)', fontWeight: 700, fontSize: '13px' }}>
               {selectedPlan} sélectionné
             </span>
           </div>
@@ -156,35 +113,39 @@ function AuthContent() {
         {error && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: '#fef2f2', border: '1px solid #fecaca',
-            borderRadius: 'var(--radius-md)', padding: '10px 13px',
-            marginBottom: '14px', color: 'var(--togo-red)', fontSize: '13px',
+            background: 'var(--red-50)', border: '1px solid var(--red-100)',
+            borderRadius: 'var(--r-md)', padding: '10px 13px',
+            marginBottom: '14px', color: 'var(--red-600)', fontSize: '13px',
           }}>
             <AlertTriangle size={15} style={{ flexShrink: 0 }} /> {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column' }}>
+
           {/* Téléphone */}
           <div className="form-group">
             <label className="form-label">
               <Phone size={11} style={{ display: 'inline', marginRight: '4px' }} />
-              Numéro de téléphone (Togo)
+              Numéro de téléphone
             </label>
             <div style={{ position: 'relative' }}>
               <span style={{
                 position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
                 display: 'inline-flex', alignItems: 'center', gap: '5px',
-                color: 'var(--text-muted)', fontSize: '13px', fontWeight: 600,
+                color: 'var(--text-400)', fontSize: '13px', fontWeight: 600,
               }}>
                 +228
               </span>
               <input
-                className="form-input" style={{ paddingLeft: '82px' }}
-                type="tel" placeholder="XX XX XX XX"
+                className="form-input"
+                style={{ paddingLeft: '54px' }}
+                type="tel"
+                placeholder="XX XX XX XX"
                 value={phone}
                 onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
                 maxLength={8}
+                autoFocus
               />
             </div>
           </div>
@@ -197,7 +158,8 @@ function AuthContent() {
             </label>
             <div style={{ position: 'relative' }}>
               <input
-                className="form-input" style={{ paddingRight: '42px' }}
+                className="form-input"
+                style={{ paddingRight: '42px' }}
                 type={showPass ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
@@ -209,7 +171,7 @@ function AuthContent() {
                 style={{
                   position: 'absolute', right: '11px', top: '50%', transform: 'translateY(-50%)',
                   background: 'none', border: 'none', cursor: 'pointer',
-                  color: 'var(--text-muted)', display: 'flex',
+                  color: 'var(--text-400)', display: 'flex',
                 }}
               >
                 {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -217,20 +179,43 @@ function AuthContent() {
             </div>
           </div>
 
-          {/* Code parrainage (inscription) */}
+          {/* Code parrainage (inscription seulement) */}
           {mode === 'register' && (
             <div className="form-group">
-              <label className="form-label">Code de parrainage (optionnel)</label>
-              <input
-                className="form-input"
-                type="text" placeholder="Ex: LEED-AB1234"
-                value={referralCode}
-                onChange={e => setReferralCode(e.target.value.toUpperCase())}
-              />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                <Gift size={11} style={{ color: 'var(--leed-yellow)' }} />
-                Votre parrain reçoit 500 FCFA si vous investissez
+              <label className="form-label">
+                Code de parrainage <span style={{ color: 'var(--red-600)' }}>*</span>
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Ex : LEED-AB1234"
+                  value={referralCode}
+                  onChange={e => !refFromUrl && setReferralCode(e.target.value.toUpperCase())}
+                  readOnly={!!refFromUrl}
+                  required
+                  style={{
+                    paddingRight: refFromUrl ? '38px' : undefined,
+                    background: refFromUrl ? 'var(--bg-subtle)' : undefined,
+                    color: refFromUrl ? 'var(--primary)' : undefined,
+                    fontWeight: refFromUrl ? 700 : undefined,
+                    cursor: refFromUrl ? 'default' : undefined,
+                  }}
+                />
+                {refFromUrl && (
+                  <span style={{
+                    position: 'absolute', right: '11px', top: '50%', transform: 'translateY(-50%)',
+                    fontSize: '11px', color: 'var(--green-600)',
+                  }}>
+                    ✓
+                  </span>
+                )}
               </div>
+              {refFromUrl && (
+                <div style={{ fontSize: '11px', color: 'var(--text-400)', marginTop: '4px' }}>
+                  Code appliqué automatiquement via le lien de parrainage.
+                </div>
+              )}
             </div>
           )}
 
@@ -255,10 +240,6 @@ function AuthContent() {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', marginTop: '20px', lineHeight: 1.6 }}>
-          En continuant, vous acceptez nos conditions d&apos;utilisation.<br />
-          Plateforme réservée aux résidents du Togo.
-        </p>
       </div>
     </div>
   );
@@ -267,7 +248,7 @@ function AuthContent() {
 export default function AuthPage() {
   return (
     <Suspense fallback={
-      <div style={{ background: 'var(--bg-primary)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+      <div style={{ background: 'var(--bg-app)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-400)' }}>
         Chargement…
       </div>
     }>

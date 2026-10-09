@@ -1,9 +1,13 @@
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || "dev-secret-change-in-production"
-);
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "[auth] JWT_SECRET is not set. Add it to your environment variables before starting the server."
+  );
+}
+
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // Token lifetime: 7 days
 const TOKEN_MAX_AGE = 7 * 24 * 60 * 60; // seconds

@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import React from 'react';
 import {
@@ -9,6 +8,7 @@ import {
   Settings, LogOut, Wallet, Menu, X, ShieldCheck,
 } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
+import { formatPhone } from '@/lib/format';
 import { useRouter } from 'next/navigation';
 
 const navItems = [
@@ -22,23 +22,13 @@ const secondaryNav = [
   { href: '/settings', label: 'Paramètres', icon: Settings },
 ];
 
-interface SidebarProps {
+interface NavbarProps {
   userPhone?: string;
   walletBalance?: number;
   isAdmin?: boolean;
 }
 
-// Format 8-digit phone "90123456" → "+228 90 12 34 56"
-function formatPhone(phone: string): string {
-  if (phone.startsWith("+228")) return phone;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length === 8) {
-    return `+228 ${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)} ${digits.slice(6, 8)}`;
-  }
-  return phone;
-}
-
-export default function Sidebar({ userPhone: phoneProp, walletBalance: balanceProp, isAdmin: isAdminProp }: SidebarProps = {}) {
+export default function Navbar({ userPhone: phoneProp, walletBalance: balanceProp, isAdmin: isAdminProp }: NavbarProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -74,7 +64,7 @@ export default function Sidebar({ userPhone: phoneProp, walletBalance: balancePr
     return () => { cancelled = true; };
   }, [phoneProp, balanceProp]);
 
-  // Format for display
+  // Format for display — uses shared helper from @/lib/format (no local duplicate)
   const displayPhone = formatPhone(userPhone);
 
   // Ferme le menu au changement de route (via ref, pas setState direct)
@@ -97,13 +87,9 @@ export default function Sidebar({ userPhone: phoneProp, walletBalance: balancePr
   return (
     <>
       <header className="navbar">
-        {/* Logo */}
-        <Link href="/dashboard" className="navbar-logo">
-          <Image
-            src="/logo.jpeg" alt="LEED"
-            width={32} height={32}
-            style={{ borderRadius: '7px', objectFit: 'cover' }}
-          />
+        {/* Logo texte */}
+        <Link href="/dashboard" className="navbar-logo" style={{ fontWeight: 900, fontSize: '17px', color: 'var(--primary)', letterSpacing: '-0.4px' }}>
+          LEED
         </Link>
 
         {/* Navigation desktop */}

@@ -32,7 +32,17 @@ export async function GET(request: Request) {
       where: { id: { in: completed.map((inv) => inv.id) } },
       data: { status: "completed", daysLeft: 0 },
     });
-    // TODO: trigger Tchin disbursement for each completed investment
+
+    // ── Disbursement (manual for now) ────────────────────────────────────────
+    // Gains are recorded as virtual wallet balance and users must request a
+    // withdrawal via /withdraw.  Admins process payouts in the /douyin panel.
+    //
+    // When Tchin supports server-initiated transfers (payout API), replace this
+    // block with an automated call per completed investment:
+    //   for (const inv of completed) {
+    //     await tchinPayout({ userId: inv.userId, amount: inv.gain, … });
+    //   }
+    // ──────────────────────────────────────────────────────────────────────────
   }
 
   // Refresh daysLeft for still-running investments

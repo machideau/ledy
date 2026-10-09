@@ -14,7 +14,10 @@ export const passwordSchema = z
 export const registerSchema = z.object({
   phone: phoneSchema,
   password: passwordSchema,
-  referralCode: z.string().optional().nullable(),
+  referralCode: z
+    .string()
+    .min(1, "Le code de parrainage est obligatoire.")
+    .regex(/^LEED-[A-Z]{2}\d{4}$/, "Code de parrainage invalide. Format attendu : LEED-AB1234."),
 });
 
 export const loginSchema = z.object({
