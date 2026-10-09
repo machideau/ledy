@@ -1,0 +1,104 @@
+// LEED Togo — Database schema (Neon Postgres)
+// Provider: postgresql (Neon serverless Postgres)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────
+// User
+// ──────────────────────────────────────────────
+model User {
+  id           String   @id @default(cuid())
+  phone        String   @unique          // 8-digit Togo number, no +228
+  password     String                    // bcrypt hash
+  name         String?                   // optional full name
+  referralCode String   @unique          // LEED-XXXXXX
+  referredBy   String?                  // referral code of sponsor
+  createdAt    DateTime @default(now())
+
+  investments  Investment[]
+  referrals    Referral[]   @relation("Referrer")
+  withdrawals  Withdrawal[]
+
+  @@index([referralCode])
+}
+
+// ──────────────────────────────────────────────
+// Investment — a plan subscription
+// ──────────────────────────────────────────────
+model Investment {
+  id         String   @id @default(cuid())
+  userId     String
+  planName   String                    // Starter | Argent | Or | Premium
+  amount     Int                       // deposit
+  remb       Int                       // 50 % immediate refund
+  gain       Int                       // doubled amount at J+30
+  status     String   @default("active") // active | completed
+  daysLeft   Int                       // days remaining (0 = completed)
+  tchinToken String?                   // Tchin payment token (idempotence)
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tchinToken])
+}
+
+// ──────────────────────────────────────────────
+// PendingPayment — Tchin token waiting for webhook
+// ──────────────────────────────────────────────
+model PendingPayment {
+  id          String   @id @default(cuid())
+  tchinToken  String   @unique          // Tchin payment token
+  userId      String
+  planId      String                    // starter | silver | gold | premium
+  payMethod   String                    // flooz | tmoney
+  phone       String                    // payment phone
+  status      String   @default("pending") // pending | completed | failed
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ──────────────────────────────────────────────
+// Referral — someone signed up via the user's link
+// ──────────────────────────────────────────────
+model Referral {
+  id           String   @id @default(cuid())
+  referrerId   String
+  referredPhone String                  // phone of the referred person
+  planName     String?                  // plan they subscribed to (null = not yet)
+  amount       Int?                     // amount invested (null = not yet)
+  commission   Int     @default(500)   // fixed 500 FCFA
+  status       String  @default("pending") // pending | paid
+  createdAt    DateTime @default(now())
+
+  referrer     User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId])
+}
+
+// ──────────────────────────────────────────────
+// Withdrawal — money taken out of the wallet
+// ──────────────────────────────────────────────
+model Withdrawal {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int
+  method    String                    // flooz | tmoney
+  phone     String                    // withdrawal phone number
+  status    String  @default("pending") // pending | paid
+  type      String                    // Remboursement 50% | Commission parrainage | Retrait manuel
+  ref       String                    // human-readable ref, e.g. WD-005
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

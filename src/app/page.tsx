@@ -3,13 +3,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, Zap, TrendingUp, Users, CheckCircle2 } from 'lucide-react';
 import TogoFlag from '@/components/TogoFlag';
+import { PLANS } from '@/lib/plans';
+import { fmt } from '@/lib/format';
 
-const plans = [
-  { name: 'Starter',  amount: 2000,  remb: 1000,  gain: 2000,  color: 'var(--green-600)',  bg: 'var(--green-50)',  border: 'var(--green-100)'  },
-  { name: 'Argent',   amount: 5000,  remb: 2500,  gain: 5000,  color: '#64748b',           bg: '#f8fafc',         border: '#e2e8f0'            },
-  { name: 'Or',       amount: 15000, remb: 7500,  gain: 15000, color: 'var(--amber-600)',  bg: 'var(--amber-50)', border: 'var(--amber-100)',  featured: true },
-  { name: 'Premium',  amount: 30000, remb: 15000, gain: 30000, color: 'var(--red-600)',    bg: 'var(--red-50)',   border: 'var(--red-100)'    },
-];
+const PLAN_DISPLAY: Record<string, { color: string; bg: string; border: string }> = {
+  starter: { color: 'var(--green-600)',  bg: 'var(--green-50)',  border: 'var(--green-100)'  },
+  silver:  { color: '#64748b',           bg: '#f8fafc',         border: '#e2e8f0'            },
+  gold:    { color: 'var(--amber-600)',  bg: 'var(--amber-50)', border: 'var(--amber-100)'  },
+  premium: { color: 'var(--red-600)',    bg: 'var(--red-50)',   border: 'var(--red-100)'    },
+};
 
 const highlights = [
   { icon: Zap,        label: '50 % remboursé', sub: 'Immédiatement à la souscription' },
@@ -89,47 +91,50 @@ export default function LandingPage() {
         </div>
 
         <div className="plans-grid">
-          {plans.map((p) => (
+          {PLANS.map((p) => {
+            const d = PLAN_DISPLAY[p.id];
+            return (
             <div
               key={p.name}
               className={`plan-card ${p.featured ? 'plan-card-featured' : ''}`}
             >
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: p.bg, border: `1px solid ${p.border}`, color: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: d.bg, border: `1px solid ${d.border}`, color: d.color, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
                 <TrendingUp size={20} />
               </div>
 
               <div className="plan-name">Plan {p.name}</div>
-              <div className="plan-amount">{p.amount.toLocaleString('fr-FR')}</div>
+              <div className="plan-amount">{fmt(p.amount)}</div>
               <div className="plan-currency">FCFA</div>
 
               <div className="plan-recap">
                 <div className="plan-recap-row">
                   <span>Remboursé immédiat</span>
-                  <span style={{ fontWeight: 700, color: 'var(--green-600)' }}>{p.remb.toLocaleString('fr-FR')} FCFA</span>
+                  <span style={{ fontWeight: 700, color: 'var(--green-600)' }}>{fmt(p.remb)} FCFA</span>
                 </div>
                 <div className="plan-recap-row">
                   <span>Gain à J+30</span>
-                  <span style={{ fontWeight: 700, color: p.color }}>+{p.gain.toLocaleString('fr-FR')} FCFA</span>
+                  <span style={{ fontWeight: 700, color: d.color }}>+{fmt(p.gain)} FCFA</span>
                 </div>
                 <div className="plan-recap-row" style={{ borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '2px' }}>
                   <span style={{ fontWeight: 700, color: 'var(--text-900)' }}>Total reçu</span>
-                  <span style={{ fontWeight: 800, color: 'var(--text-900)' }}>{(p.remb + p.gain).toLocaleString('fr-FR')} FCFA</span>
+                  <span style={{ fontWeight: 800, color: 'var(--text-900)' }}>{fmt(p.remb + p.gain)} FCFA</span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '16px' }}>
-                {[`Dépôt : ${p.amount.toLocaleString('fr-FR')} FCFA`, `Remboursé immédiat : ${p.remb.toLocaleString('fr-FR')} FCFA`, `Gain en 1 mois : +${p.gain.toLocaleString('fr-FR')} FCFA`].map((f) => (
+                {[`Dépôt : ${fmt(p.amount)} FCFA`, `Remboursé immédiat : ${fmt(p.remb)} FCFA`, `Gain en 1 mois : +${fmt(p.gain)} FCFA`].map((f) => (
                   <div key={f} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12.5px', color: 'var(--text-700)' }}>
-                    <CheckCircle2 size={13} style={{ color: p.color, flexShrink: 0 }} /> {f}
+                    <CheckCircle2 size={13} style={{ color: d.color, flexShrink: 0 }} /> {f}
                   </div>
                 ))}
               </div>
 
-              <Link href={`/auth?register=1&plan=${p.amount}`} className="plan-btn" style={{ background: p.color }}>
+              <Link href={`/auth?register=1&plan=${p.amount}`} className="plan-btn" style={{ background: d.color }}>
                 Choisir ce plan <ArrowRight size={13} />
               </Link>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

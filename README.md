@@ -1,36 +1,129 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LEED Togo
 
-## Getting Started
+Plateforme d'investissement communautaire pour les Togolais. Les utilisateurs déposent entre 2 000 et 30 000 FCFA, reçoivent 50 % immédiatement, et la mise est doublée en 30 jours. Un système de parrainage crédite 500 FCFA par filleul qui investit.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Framework** : Next.js 16 (App Router) — `proxy.ts` pour la protection des routes
+- **Base de données** : PostgreSQL via [Neon](https://neon.tech) (serverless)
+- **ORM** : Prisma 7 avec `@prisma/adapter-neon`
+- **Auth** : JWT (`jose`) + passwords hashés (`bcryptjs`), cookie `httpOnly`
+- **Validation** : Zod (serveur et client)
+- **UI** : React 19, design system CSS maison (`src/styles/globals.css`)
+
+## Structure
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── auth/          # register, login, logout, me
+│   │   ├── dashboard/     # données agrégées du dashboard
+│   │   ├── investments/   # CRUD investissements
+│   │   ├── referrals/     # liste des filleuls + stats
+│   │   ├── user/          # profil + changement de mot de passe
+│   │   └── withdrawals/   # historique + création de retrait
+│   ├── auth/              # page connexion / inscription
+│   ├── dashboard/         # tableau de bord
+│   ├── invest/            # sélection d'un plan
+│   ├── referral/          # parrainage
+│   ├── settings/          # profil + sécurité
+│   └── withdraw/          # retrait
+├── components/
+│   ├── Sidebar.tsx        # navbar top (desktop + mobile)
+│   └── TogoFlag.tsx       # drapeau SVG
+├── generated/prisma/      # client Prisma généré (gitignore)
+├── lib/
+│   ├── api.ts             # helpers fetch côté client
+│   ├── auth.ts            # JWT + hash bcrypt
+│   ├── format.ts          # fmt(), formatPhone(), formatDate()
+│   ├── plans.ts           # source unique des 4 plans + helpers
+│   ├── prisma.ts          # singleton PrismaClient avec Neon adapter
+│   ├── session.ts         # getCurrentUser() / requireUser()
+│   ├── types.ts           # interfaces partagées
+│   └── validation.ts      # schémas Zod
+├── proxy.ts               # protection des routes (Next.js 16, ≠ middleware)
+└── styles/globals.css     # design system complet
+prisma/
+├── schema.prisma          # modèles User, Investment, Referral, Withdrawal
+prisma.config.ts           # connexion Prisma CLI → DATABASE_URL_UNPOOLED
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Mise en route
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 1. Variables d'environnement
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copiez `.env.example` en `.env` et remplissez vos valeurs Neon :
 
-## Learn More
+```bash
+cp .env.example .env
+```
 
-To learn more about Next.js, take a look at the following resources:
+```env
+# Connexion poolée (application)
+DATABASE_URL="postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=require"
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Connexion directe (Prisma CLI)
+DATABASE_URL_UNPOOLED="postgresql://user:pass@ep-xxx.region.aws.neon.tech/neondb?sslmode=require"
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Secret JWT — générez-en un : openssl rand -base64 32
+JWT_SECRET="votre-secret-ici"
+```
 
-## Deploy on Vercel
+> Dans la console Neon : votre projet → **Connect** → copiez les deux strings (pooled et unpooled).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Base de données
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# Appliquer le schéma sur votre base Neon
+npm run db:push
+
+# (optionnel) Ouvrir Prisma Studio pour inspecter les données
+npm run db:studio
+```
+
+### 3. Développement
+
+```bash
+npm install
+npm run dev
+```
+
+L'app tourne sur [http://localhost:3000](http://localhost:3000).
+
+### 4. Build
+
+```bash
+npm run build
+npm start
+```
+
+## Scripts disponibles
+
+| Commande | Description |
+|----------|-------------|
+| `npm run dev` | Démarrage en mode développement (webpack) |
+| `npm run dev:turbo` | Démarrage avec Turbopack |
+| `npm run build` | Build production |
+| `npm run lint` | ESLint |
+| `npm run db:push` | Synchronise le schéma Prisma → Neon (sans migration) |
+| `npm run db:migrate` | Crée une migration Prisma |
+| `npm run db:generate` | Régénère le client Prisma |
+| `npm run db:studio` | Ouvre Prisma Studio |
+
+## Authentification
+
+- L'inscription/connexion se fait par numéro de téléphone togolais (8 chiffres, sans le +228) + mot de passe
+- Un cookie `httpOnly` `leed-session` est posé avec le JWT
+- Le fichier `src/proxy.ts` (Next.js 16 — anciennement `middleware.ts`) redirige vers `/auth` si une route protégée est accédée sans session
+
+## Paiements mobiles
+
+L'intégration Flooz/T-Money est à brancher. En attendant, les modales d'investissement simulent un délai de traitement puis appellent l'API qui crée le record en base. Aucun appel externe n'est effectué.
+
+## Ajouter la BD à Neon
+
+1. Créer un compte sur [neon.tech](https://neon.tech)
+2. Créer un projet (région proche de l'Afrique de l'Ouest — EU West est la plus proche actuellement)
+3. Copier les deux connection strings dans `.env`
+4. Lancer `npm run db:push`

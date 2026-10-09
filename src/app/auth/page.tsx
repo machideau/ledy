@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Phone, Lock, Eye, EyeOff, ArrowRight, Zap, TrendingUp, Users, Smartphone, Gift, AlertTriangle } from 'lucide-react';
 import TogoFlag from '@/components/TogoFlag';
+import { api, ApiClientError } from '@/lib/api';
+import { PLAN_LABELS } from '@/lib/plans';
 
 const features = [
   { icon: Zap,        text: '50 % de votre dépôt remboursé immédiatement' },
@@ -12,10 +14,6 @@ const features = [
   { icon: Users,      text: '500 FCFA par filleul qui souscrit' },
   { icon: Smartphone, text: 'Paiement via Flooz & T-Money' },
 ];
-
-const planLabels: Record<string, string> = {
-  '2000': 'Starter', '5000': 'Argent', '15000': 'Or', '30000': 'Premium',
-};
 
 function AuthContent() {
   const searchParams = useSearchParams();
@@ -25,8 +23,8 @@ function AuthContent() {
     searchParams.get('register') === '1' ? 'register' : 'login'
   );
   const planParam    = searchParams.get('plan') || '';
-  const selectedPlan = planLabels[planParam]
-    ? `Plan ${planLabels[planParam]} (${parseInt(planParam).toLocaleString('fr-FR')} FCFA)`
+  const selectedPlan = PLAN_LABELS[planParam]
+    ? `Plan ${PLAN_LABELS[planParam]} (${parseInt(planParam).toLocaleString('fr-FR')} FCFA)`
     : null;
 
   const [phone,        setPhone]        = useState('');
@@ -42,9 +40,23 @@ function AuthContent() {
     if (!phone || phone.length < 8)    { setError('Entrez un numéro de téléphone valide (8 chiffres).'); return; }
     if (!password || password.length < 4) { setError('Le mot de passe doit comporter au moins 4 caractères.'); return; }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setLoading(false);
-    router.push('/dashboard');
+    try {
+      if (mode === 'register') {
+        await api.register({ phone, password, referralCode: referralCode || undefined });
+      } else {
+        await api.login({ phone, password });
+      }
+      // Check for redirect param
+      const redirect = searchParams.get('redirect');
+      router.push(redirect || '/dashboard');
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+      } else {
+        setError('Une erreur est survenue. Réessayez.');
+      }
+      setLoading(false);
+    }
   };
 
   return (

@@ -3,53 +3,64 @@ import { useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import TogoFlag from '@/components/TogoFlag';
 import {
-  TrendingUp, CheckCircle2, X, ArrowRight, Zap, Smartphone,
-  Award, Sparkles, Gift, Clock, CreditCard,
+  TrendingUp, CheckCircle2, X, ArrowRight, Zap,
+  Award, Sparkles, Gift, Clock, CreditCard, AlertTriangle, Smartphone,
 } from 'lucide-react';
+import { api, ApiClientError } from '@/lib/api';
+import { PLANS } from '@/lib/plans';
+import { fmt } from '@/lib/format';
+import type { Plan } from '@/lib/types';
 
-const PLANS = [
-  {
-    id: 'starter', name: 'Starter', icon: TrendingUp, amount: 2000,  remb: 1000,  gain: 2000,
-    tag: 'Pour débuter',     featured: false,
-    accentColor: 'var(--green-600)',  accentBg: 'var(--green-50)',  accentBorder: 'var(--green-100)',
-    features: ['Dépôt : 2 000 FCFA', 'Remboursé immédiat : 1 000 FCFA', 'Gain en 1 mois : +2 000 FCFA', 'Commission parrainage : 500 FCFA'],
-  },
-  {
-    id: 'silver',  name: 'Argent',  icon: Award,     amount: 5000,  remb: 2500,  gain: 5000,
-    tag: 'Populaire',        featured: false,
-    accentColor: '#64748b',           accentBg: '#f8fafc',          accentBorder: '#e2e8f0',
-    features: ['Dépôt : 5 000 FCFA', 'Remboursé immédiat : 2 500 FCFA', 'Gain en 1 mois : +5 000 FCFA', 'Commission parrainage : 500 FCFA'],
-  },
-  {
-    id: 'gold',    name: 'Or',      icon: Sparkles,  amount: 15000, remb: 7500,  gain: 15000,
-    tag: 'Meilleur choix',   featured: true,
-    accentColor: 'var(--amber-600)', accentBg: 'var(--amber-50)',  accentBorder: 'var(--amber-100)',
-    features: ['Dépôt : 15 000 FCFA', 'Remboursé immédiat : 7 500 FCFA', 'Gain en 1 mois : +15 000 FCFA', 'Commission parrainage : 500 FCFA'],
-  },
-  {
-    id: 'premium', name: 'Premium', icon: Gift,      amount: 30000, remb: 15000, gain: 30000,
-    tag: 'Maximum profit',   featured: false,
-    accentColor: 'var(--red-600)',   accentBg: 'var(--red-50)',    accentBorder: 'var(--red-100)',
-    features: ['Dépôt : 30 000 FCFA', 'Remboursé immédiat : 15 000 FCFA', 'Gain en 1 mois : +30 000 FCFA', 'Commission parrainage : 500 FCFA'],
-  },
-];
+const PLAN_ICONS: Record<string, typeof TrendingUp> = {
+  starter: TrendingUp,
+  silver: Award,
+  gold: Sparkles,
+  premium: Gift,
+};
 
-type Plan = typeof PLANS[number];
-function fmt(n: number) { return n.toLocaleString('fr-FR'); }
+const PLAN_STYLES: Record<string, { color: string; bg: string; border: string; tag: string }> = {
+  starter: { color: 'var(--green-600)',  bg: 'var(--green-50)',  border: 'var(--green-100)',  tag: 'Pour débuter'    },
+  silver:  { color: '#64748b',           bg: '#f8fafc',          border: '#e2e8f0',            tag: 'Populaire'       },
+  gold:    { color: 'var(--amber-600)',  bg: 'var(--amber-50)',  border: 'var(--amber-100)',  tag: 'Meilleur choix'  },
+  premium: { color: 'var(--red-600)',    bg: 'var(--red-50)',    border: 'var(--red-100)',    tag: 'Maximum profit'  },
+};
+
+function planFeatures(plan: Plan): string[] {
+  return [
+    `Dépôt : ${fmt(plan.amount)} FCFA`,
+    `Remboursé immédiat : ${fmt(plan.remb)} FCFA`,
+    `Gain en 1 mois : +${fmt(plan.gain)} FCFA`,
+    'Commission parrainage : 500 FCFA',
+  ];
+}
 
 /* ── Modale ── */
 function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
-  const [step,      setStep]      = useState<'confirm' | 'payment' | 'success'>('confirm');
+  const [step,      setStep]      = useState<'confirm' | 'creating' | 'redirecting' | 'error'>('confirm');
   const [payMethod, setPayMethod] = useState<'flooz' | 'tmoney'>('flooz');
   const [phone,     setPhone]     = useState('');
+  const [errorMsg,  setErrorMsg]  = useState('');
 
-  const Icon = plan.icon;
+  const Icon = PLAN_ICONS[plan.id] || TrendingUp;
+  const s = PLAN_STYLES[plan.id];
 
   const handlePay = async () => {
     if (!phone || phone.length < 8) return;
-    setStep('payment');
-    await new Promise(r => setTimeout(r, 1800));
-    setStep('success');
+    setStep('creating');
+    try {
+      const { payment_url } = await api.tchinPay({
+        planId: plan.id,
+        paymentMethod: payMethod,
+        phone,
+      });
+      setStep('redirecting');
+      // Small delay so the user sees the "redirecting" message
+      await new Promise(r => setTimeout(r, 800));
+      window.location.href = payment_url;
+    } catch (err) {
+      setErrorMsg(err instanceof ApiClientError ? err.message : 'Une erreur est survenue.');
+      setStep('error');
+    }
   };
 
   return (
@@ -59,9 +70,10 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
         <div className="modal-header">
           <div>
             <h3 style={{ fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-900)' }}>
-              {step === 'confirm' && <><div style={{ width: 28, height: 28, borderRadius: 8, background: plan.accentBg, border: `1px solid ${plan.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: plan.accentColor }}><Icon size={15} /></div> Plan {plan.name}</>}
-              {step === 'payment' && <><Clock size={18} style={{ color: 'var(--amber-600)' }} /> Paiement en cours…</>}
-              {step === 'success' && <><CheckCircle2 size={18} style={{ color: 'var(--green-600)' }} /> Confirmé !</>}
+              {step === 'confirm'     && <><div style={{ width: 28, height: 28, borderRadius: 8, background: s.bg, border: `1px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color }}><Icon size={15} /></div> Plan {plan.name}</>}
+              {step === 'creating'    && <><Clock size={18} style={{ color: 'var(--amber-600)' }} /> Préparation…</>}
+              {step === 'redirecting' && <><Clock size={18} style={{ color: 'var(--amber-600)' }} /> Redirection…</>}
+              {step === 'error'       && <><AlertTriangle size={18} style={{ color: 'var(--red-600)' }} /> Erreur</>}
             </h3>
             {step === 'confirm' && <p style={{ fontSize: '12px', color: 'var(--text-400)', marginTop: '2px' }}>Résumé avant confirmation</p>}
           </div>
@@ -75,17 +87,17 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
             <>
               {/* Récap montant */}
               <div style={{
-                background: plan.accentBg, border: `1px solid ${plan.accentBorder}`,
+                background: s.bg, border: `1px solid ${s.border}`,
                 borderRadius: 'var(--r-md)', padding: '16px', marginBottom: '18px',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', border: `1px solid ${plan.accentBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: plan.accentColor }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', border: `1px solid ${s.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.color }}>
                       <Icon size={20} />
                     </div>
                     <div>
                       <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-400)' }}>Plan</div>
-                      <div style={{ fontWeight: 800, fontSize: '15px', color: plan.accentColor }}>{plan.name}</div>
+                      <div style={{ fontWeight: 800, fontSize: '15px', color: s.color }}>{plan.name}</div>
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -96,12 +108,12 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
 
                 {[
                   { icon: Zap,        label: 'Remboursement immédiat (50%)', val: `+${fmt(plan.remb)} FCFA`,            color: 'var(--green-600)' },
-                  { icon: TrendingUp, label: "Gain au bout d'1 mois",        val: `+${fmt(plan.gain)} FCFA`,            color: plan.accentColor },
+                  { icon: TrendingUp, label: "Gain au bout d'1 mois",        val: `+${fmt(plan.gain)} FCFA`,            color: s.color },
                   { icon: CreditCard, label: 'Total que vous recevez',        val: `${fmt(plan.remb + plan.gain)} FCFA`, color: 'var(--text-900)', bold: true },
                 ].map(row => {
                   const R = row.icon;
                   return (
-                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: `1px solid ${plan.accentBorder}` }}>
+                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: `1px solid ${s.border}` }}>
                       <span style={{ color: 'var(--text-500)', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <R size={13} style={{ color: row.color }} /> {row.label}
                       </span>
@@ -154,48 +166,45 @@ function InvestModal({ plan, onClose }: { plan: Plan; onClose: () => void }) {
             </>
           )}
 
-          {/* ETAPE 2 */}
-          {step === 'payment' && (
+            {/* ETAPE 2 — création du paiement */}
+          {step === 'creating' && (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--green-50)', border: '2px solid var(--green-100)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Smartphone size={28} style={{ color: 'var(--green-600)' }} />
               </div>
-              <h3 style={{ fontSize: '17px', fontWeight: 800, marginBottom: '10px' }}>Vérifiez votre téléphone</h3>
+              <h3 style={{ fontSize: '17px', fontWeight: 800, marginBottom: '10px' }}>Création du paiement…</h3>
               <p style={{ color: 'var(--text-500)', fontSize: '13.5px', lineHeight: 1.6 }}>
-                Une demande de paiement a été envoyée sur le <strong style={{ color: 'var(--text-900)' }}>+228 {phone}</strong>.<br />
-                Confirmez le paiement sur votre téléphone.
+                Préparation de votre lien de paiement Mobile Money.
               </p>
               <div style={{ marginTop: '28px', display: 'inline-block', width: '40px', height: '40px', border: '3px solid var(--green-100)', borderTopColor: 'var(--green-600)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
             </div>
           )}
 
-          {/* ETAPE 3 */}
-          {step === 'success' && (
-            <div style={{ textAlign: 'center', padding: '32px 16px' }}>
-              <div style={{ width: 68, height: 68, borderRadius: '50%', background: 'var(--green-50)', border: '2px solid var(--green-100)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle2 size={36} style={{ color: 'var(--green-600)' }} />
+          {/* ETAPE 3 — redirection */}
+          {step === 'redirecting' && (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--green-50)', border: '2px solid var(--green-100)', margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Smartphone size={28} style={{ color: 'var(--green-600)' }} />
               </div>
-              <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--green-600)', marginBottom: '6px' }}>Investissement réussi !</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-400)', marginBottom: '20px' }}>Votre placement est maintenant actif.</p>
-
-              <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '16px', marginBottom: '20px', textAlign: 'left' }}>
-                {[
-                  { label: 'Plan souscrit',          val: plan.name,                    color: plan.accentColor },
-                  { label: 'Remboursement immédiat', val: `+${fmt(plan.remb)} FCFA`,   color: 'var(--green-600)' },
-                  { label: 'Gain à J+30',            val: `+${fmt(plan.gain)} FCFA`,   color: plan.accentColor },
-                ].map(row => (
-                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span style={{ color: 'var(--text-400)', fontSize: '13px' }}>{row.label}</span>
-                    <span style={{ color: row.color, fontWeight: 800, fontSize: '13.5px' }}>{row.val}</span>
-                  </div>
-                ))}
-              </div>
-
-              <p style={{ color: 'var(--text-400)', fontSize: '12.5px', marginBottom: '18px', lineHeight: 1.6 }}>
-                Partagez votre lien de parrainage pour gagner <strong style={{ color: 'var(--amber-600)' }}>500 FCFA</strong> par filleul !
+              <h3 style={{ fontSize: '17px', fontWeight: 800, marginBottom: '10px' }}>Redirection en cours…</h3>
+              <p style={{ color: 'var(--text-500)', fontSize: '13.5px', lineHeight: 1.6 }}>
+                Vous allez être redirigé vers la page de paiement sécurisée.<br />
+                Confirmez le paiement de <strong style={{ color: 'var(--text-900)' }}>{fmt(plan.amount)} FCFA</strong> sur votre téléphone.
               </p>
-              <button className="btn btn-green btn-lg" onClick={onClose} style={{ width: '100%', justifyContent: 'center' }}>
-                Voir mon tableau de bord
+              <div style={{ marginTop: '28px', display: 'inline-block', width: '40px', height: '40px', border: '3px solid var(--green-100)', borderTopColor: 'var(--green-600)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            </div>
+          )}
+
+          {/* ERREUR */}
+          {step === 'error' && (
+            <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--red-50)', border: '2px solid var(--red-100)', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={32} style={{ color: 'var(--red-600)' }} />
+              </div>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--red-600)', marginBottom: '8px' }}>Échec de l&apos;investissement</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-400)', marginBottom: '20px' }}>{errorMsg}</p>
+              <button className="btn btn-outline" onClick={() => setStep('confirm')} style={{ width: '100%', justifyContent: 'center' }}>
+                Réessayer
               </button>
             </div>
           )}
@@ -212,7 +221,7 @@ export default function InvestPage() {
 
   return (
     <div className="app-layout">
-      <Sidebar userPhone="+228 90 12 34 56" walletBalance={9500} />
+      <Sidebar />
 
       <main className="main-content">
         <div className="page-container">
@@ -228,7 +237,8 @@ export default function InvestPage() {
 
           <div className="plans-grid">
             {PLANS.map((plan, i) => {
-              const Icon = plan.icon;
+              const Icon = PLAN_ICONS[plan.id] || TrendingUp;
+              const s = PLAN_STYLES[plan.id];
               return (
                 <div
                   key={plan.id}
@@ -238,12 +248,12 @@ export default function InvestPage() {
                 >
                   <div className={`plan-badge plan-badge-${plan.id === 'silver' ? 'silver' : plan.id === 'gold' ? 'gold' : plan.id === 'premium' ? 'premium' : 'starter'}`} />
 
-                  <div className="plan-icon-wrapper" style={{ marginTop: '10px', background: plan.accentBg, border: `1px solid ${plan.accentBorder}`, color: plan.accentColor }}>
+                  <div className="plan-icon-wrapper" style={{ marginTop: '10px', background: s.bg, border: `1px solid ${s.border}`, color: s.color }}>
                     <Icon size={22} />
                   </div>
 
                   <div style={{ fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-400)', marginBottom: '3px' }}>
-                    {plan.tag}
+                    {s.tag}
                   </div>
                   <div className="plan-name">Plan {plan.name}</div>
                   <div className="plan-amount">{fmt(plan.amount)}</div>
@@ -256,7 +266,7 @@ export default function InvestPage() {
                     </div>
                     <div className="plan-recap-row">
                       <span>Gain en 1 mois</span>
-                      <span style={{ fontWeight: 700, color: plan.accentColor }}>+{fmt(plan.gain)} FCFA</span>
+                      <span style={{ fontWeight: 700, color: s.color }}>+{fmt(plan.gain)} FCFA</span>
                     </div>
                     <div className="plan-recap-row" style={{ borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '2px' }}>
                       <span style={{ fontWeight: 700, color: 'var(--text-900)' }}>Total reçu</span>
@@ -265,15 +275,15 @@ export default function InvestPage() {
                   </div>
 
                   <div className="plan-features">
-                    {plan.features.map((f, fi) => (
+                    {planFeatures(plan).map((f, fi) => (
                       <div key={fi} className="plan-feature">
-                        <CheckCircle2 size={13} style={{ color: plan.accentColor, flexShrink: 0 }} />
+                        <CheckCircle2 size={13} style={{ color: s.color, flexShrink: 0 }} />
                         {f}
                       </div>
                     ))}
                   </div>
 
-                  <button className="plan-btn" style={{ background: plan.accentColor }}>
+                  <button className="plan-btn" style={{ background: s.color }}>
                     Investir maintenant <ArrowRight size={13} />
                   </button>
                 </div>

@@ -3,10 +3,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import React from 'react';
 import {
   LayoutDashboard, TrendingUp, Users, ArrowDownToLine,
   Settings, LogOut, Wallet, Menu, X,
 } from 'lucide-react';
+import { api, ApiClientError } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 const navItems = [
   { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
@@ -24,12 +27,54 @@ interface SidebarProps {
   walletBalance?: number;
 }
 
-export default function Sidebar({ userPhone = '+228 XX XX XX XX', walletBalance = 0 }: SidebarProps) {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+// Format 8-digit phone "90123456" → "+228 90 12 34 56"
+function formatPhone(phone: string): string {
+  if (phone.startsWith("+228")) return phone;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 8) {
+    return `+228 ${digits.slice(0, 2)} ${digits.slice(2, 4)} ${digits.slice(4, 6)} ${digits.slice(6, 8)}`;
+  }
+  return phone;
+}
 
-  // Ferme le menu au changement de route
-  useEffect(() => { setOpen(false); }, [pathname]);
+export default function Sidebar({ userPhone: phoneProp, walletBalance: balanceProp }: SidebarProps = {}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [userPhone, setUserPhone] = useState(phoneProp || '');
+  const [walletBalance, setWalletBalance] = useState(balanceProp ?? 0);
+
+  // Fetch real user data if not passed via props
+  useEffect(() => {
+    if (phoneProp && balanceProp !== undefined) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const data = await api.dashboard();
+        if (cancelled) return;
+        if (!phoneProp) setUserPhone(data.user.phone);
+        if (balanceProp === undefined) setWalletBalance(data.walletBalance);
+      } catch (e) {
+        if (e instanceof ApiClientError && e.status === 401) return;
+        // Non-auth error — keep defaults
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [phoneProp, balanceProp]);
+
+  // Format for display
+  const displayPhone = formatPhone(userPhone);
+
+  // Ferme le menu au changement de route (via ref, pas setState direct)
+  const pathnameRef = React.useRef(pathname);
+  useEffect(() => {
+    if (pathnameRef.current !== pathname) {
+      pathnameRef.current = pathname;
+      setOpen(false);
+    }
+  });
 
   // Ferme le menu si on clique en dehors
   useEffect(() => {
@@ -82,13 +127,22 @@ export default function Sidebar({ userPhone = '+228 XX XX XX XX', walletBalance 
           </div>
 
           <div className="navbar-user">
-            <div className="user-avatar">{userPhone.slice(-2)}</div>
-            <span className="navbar-phone">{userPhone}</span>
+            <div className="user-avatar">{displayPhone.slice(-2)}</div>
+            <span className="navbar-phone">{displayPhone}</span>
           </div>
 
-          <Link href="/auth" className="navbar-logout" title="Déconnexion">
+          <button
+            className="navbar-logout"
+            title="Déconnexion"
+            onClick={async (e) => {
+              e.preventDefault();
+              try { await api.logout(); } catch {}
+              router.push("/auth");
+            }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+          >
             <LogOut size={15} />
-          </Link>
+          </button>
         </div>
 
         {/* Bouton hamburger (mobile uniquement) */}
@@ -126,17 +180,23 @@ export default function Sidebar({ userPhone = '+228 XX XX XX XX', walletBalance 
         {/* Solde + déco */}
         <div className="mobile-wallet-row">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div className="user-avatar">{userPhone.slice(-2)}</div>
+            <div className="user-avatar">{displayPhone.slice(-2)}</div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-900)' }}>{userPhone}</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-900)' }}>{displayPhone}</div>
               <div style={{ fontSize: '12px', color: 'var(--green-600)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Wallet size={11} /> {walletBalance.toLocaleString('fr-FR')} FCFA
               </div>
             </div>
           </div>
-          <Link href="/auth" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--red-600)', fontSize: '13px', fontWeight: 700 }}>
+          <button
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--red-600)', fontSize: '13px', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+            onClick={async () => {
+              try { await api.logout(); } catch {}
+              router.push("/auth");
+            }}
+          >
             <LogOut size={15} /> Déconnexion
-          </Link>
+          </button>
         </div>
       </nav>
     </>

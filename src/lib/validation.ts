@@ -1,0 +1,46 @@
+import { z } from "zod";
+
+// Togo phone numbers are 8 digits. We store without the +228 prefix.
+export const phoneSchema = z
+  .string()
+  .min(8, "Entrez un numéro de téléphone valide (8 chiffres).")
+  .max(8)
+  .regex(/^\d{8}$/, "Le numéro doit contenir 8 chiffres.");
+
+export const passwordSchema = z
+  .string()
+  .min(4, "Le mot de passe doit comporter au moins 4 caractères.");
+
+export const registerSchema = z.object({
+  phone: phoneSchema,
+  password: passwordSchema,
+  referralCode: z.string().optional().nullable(),
+});
+
+export const loginSchema = z.object({
+  phone: phoneSchema,
+  password: z.string().min(1, "Entrez votre mot de passe."),
+});
+
+export const investSchema = z.object({
+  planId: z.enum(["starter", "silver", "gold", "premium"]),
+  paymentMethod: z.enum(["flooz", "tmoney"]),
+  phone: phoneSchema,
+});
+
+export const withdrawSchema = z.object({
+  method: z.enum(["flooz", "tmoney"]),
+  phone: phoneSchema,
+  amount: z.number().int().min(500, "Le montant minimum est 500 FCFA."),
+});
+
+export const updateProfileSchema = z.object({
+  name: z.string().max(100).optional().nullable(),
+  phone: phoneSchema.optional(),
+  defaultWithdrawMethod: z.enum(["flooz", "tmoney"]).optional(),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: passwordSchema,
+});

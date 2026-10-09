@@ -1,35 +1,102 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import TogoFlag from '@/components/TogoFlag';
-import { User, Phone, Shield, CheckCircle2, Lock, Settings } from 'lucide-react';
+import { User, Phone, Shield, CheckCircle2, Lock, Settings, AlertTriangle } from 'lucide-react';
+import { api, ApiClientError } from '@/lib/api';
+import { formatPhone } from '@/lib/format';
 
 export default function SettingsPage() {
-  const [phone,     setPhone]     = useState('90 12 34 56');
-  const [name,      setName]      = useState('Kofi Mensah');
+  const [phone,     setPhone]     = useState('');
+  const [name,      setName]      = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [saved,     setSaved]     = useState(false);
   const [passSaved, setPassSaved] = useState(false);
+  const [passError, setPassError] = useState('');
+  const [loading,   setLoading]   = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPass, setSavingPass] = useState(false);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  // Password fields
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass,      setNewPass]      = useState('');
+  const [confirmPass,  setConfirmPass]  = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const user = await api.me();
+        setPhone(user.phone);
+        setName(user.name || '');
+        setReferralCode(user.referralCode);
+      } catch {
+        // Redirected by proxy if 401
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    setSavingProfile(true);
+    try {
+      await api.updateProfile({ name, phone });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setPassError(err instanceof ApiClientError ? err.message : 'Erreur.');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
-  const handleSavePass = (e: React.FormEvent) => {
+  const handleSavePass = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPassSaved(true);
-    setTimeout(() => setPassSaved(false), 2500);
+    setPassError('');
+    if (newPass !== confirmPass) {
+      setPassError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+    if (newPass.length < 4) {
+      setPassError('Le mot de passe doit comporter au moins 4 caractères.');
+      return;
+    }
+    setSavingPass(true);
+    try {
+      await api.changePassword({ currentPassword: currentPass, newPassword: newPass });
+      setPassSaved(true);
+      setCurrentPass(''); setNewPass(''); setConfirmPass('');
+      setTimeout(() => setPassSaved(false), 2500);
+    } catch (err) {
+      setPassError(err instanceof ApiClientError ? err.message : 'Erreur.');
+    } finally {
+      setSavingPass(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="app-layout">
+        <Sidebar />
+        <main className="main-content">
+          <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
+            Chargement…
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const displayPhone = formatPhone(phone);
 
   return (
     <div className="app-layout">
-      <Sidebar userPhone={`+228 ${phone}`} walletBalance={9500} />
+      <Sidebar userPhone={displayPhone} />
 
       <main className="main-content">
         <div className="page-container">
 
-          {/* ── Header ── */}
           <div className="page-header">
             <div>
               <h1 className="page-title">
@@ -61,11 +128,7 @@ export default function SettingsPage() {
               <form onSubmit={handleSaveProfile}>
                 <div className="form-group">
                   <label className="form-label">Nom complet</label>
-                  <input
-                    className="form-input"
-                    type="text" value={name}
-                    onChange={e => setName(e.target.value)}
-                  />
+                  <input className="form-input" type="text" value={name} onChange={e => setName(e.target.value)} />
                 </div>
 
                 <div className="form-group">
@@ -81,29 +144,18 @@ export default function SettingsPage() {
                     }}>
                       <TogoFlag size={13} /> +228
                     </span>
-                    <input
-                      className="form-input" style={{ paddingLeft: '82px' }}
-                      type="tel" value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      maxLength={11}
-                    />
+                    <input className="form-input" style={{ paddingLeft: '82px' }} type="tel" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} maxLength={8} />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Mode de retrait par défaut</label>
-                  <select className="form-input">
-                    <option value="flooz">Flooz (Togocel)</option>
-                    <option value="tmoney">T-Money (Moov)</option>
-                  </select>
+                  <label className="form-label">Code de parrainage</label>
+                  <input className="form-input" type="text" value={referralCode} disabled style={{ fontFamily: 'monospace', letterSpacing: '2px', fontWeight: 800, color: 'var(--leed-yellow)', opacity: 0.8 }} />
+                  <div style={{ fontSize: '11px', color: 'var(--text-400)', marginTop: '4px' }}>Votre code est unique et ne peut pas être modifié.</div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="btn btn-green"
-                  style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}
-                >
-                  Enregistrer les modifications
+                <button type="submit" className="btn btn-green" disabled={savingProfile} style={{ width: '100%', justifyContent: 'center', marginTop: '8px', opacity: savingProfile ? 0.75 : 1 }}>
+                  {savingProfile ? 'Enregistrement…' : 'Enregistrer les modifications'}
                 </button>
               </form>
             </div>
@@ -125,26 +177,33 @@ export default function SettingsPage() {
                 </div>
               )}
 
+              {passError && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  background: '#fef2f2', border: '1px solid #fecaca',
+                  borderRadius: 'var(--radius-md)', padding: '10px 13px',
+                  color: 'var(--togo-red)', fontSize: '13px', marginBottom: '14px',
+                }}>
+                  <AlertTriangle size={15} style={{ flexShrink: 0 }} /> {passError}
+                </div>
+              )}
+
               <form onSubmit={handleSavePass}>
                 <div className="form-group">
                   <label className="form-label">Mot de passe actuel</label>
-                  <input className="form-input" type="password" placeholder="••••••••" />
+                  <input className="form-input" type="password" placeholder="••••••••" value={currentPass} onChange={e => setCurrentPass(e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Nouveau mot de passe</label>
-                  <input className="form-input" type="password" placeholder="••••••••" />
+                  <input className="form-input" type="password" placeholder="••••••••" value={newPass} onChange={e => setNewPass(e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Confirmer le nouveau mot de passe</label>
-                  <input className="form-input" type="password" placeholder="••••••••" />
+                  <input className="form-input" type="password" placeholder="••••••••" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} />
                 </div>
 
-                <button
-                  type="submit"
-                  className="btn btn-outline"
-                  style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}
-                >
-                  <Lock size={14} /> Changer le mot de passe
+                <button type="submit" className="btn btn-outline" disabled={savingPass} style={{ width: '100%', justifyContent: 'center', marginTop: '8px', opacity: savingPass ? 0.75 : 1 }}>
+                  <Lock size={14} /> {savingPass ? 'Modification…' : 'Changer le mot de passe'}
                 </button>
               </form>
             </div>
