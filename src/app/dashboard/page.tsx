@@ -48,9 +48,6 @@ function DashboardContent() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Don't render on the server — all data is client-fetched
-  if (typeof window === 'undefined') return null;
-
   // Loading state
   if (!data && !loadErr) {
     return (

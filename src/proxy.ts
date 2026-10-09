@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifyToken, COOKIE_NAME } from "@/lib/auth";
+import { verifyTokenEdge, COOKIE_NAME } from "@/lib/auth";
 
 // Routes that require authentication.
 const PROTECTED_ROUTES = ["/dashboard", "/invest", "/referral", "/withdraw", "/settings"];
@@ -11,7 +11,7 @@ const AUTH_ROUTES = ["/auth"];
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(COOKIE_NAME)?.value;
-  const isAuthenticated = token ? !!(await verifyToken(token)) : false;
+  const isAuthenticated = token ? !!(await verifyTokenEdge(token)) : false;
 
   const isProtected = PROTECTED_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(route + "/")

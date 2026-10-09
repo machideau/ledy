@@ -21,11 +21,13 @@ model User {
   referralCode String   @unique          // LEED-XXXXXX
   referredBy   String?                  // referral code of sponsor
   role         String   @default("user") // user | douyin
+  suspended    Boolean  @default(false)  // true = account blocked by admin
   createdAt    DateTime @default(now())
 
   investments  Investment[]
   referrals    Referral[]   @relation("Referrer")
   withdrawals  Withdrawal[]
+  adminLogs    AdminLog[]   @relation("AdminTarget")
 
   @@index([referralCode])
 }
@@ -95,12 +97,44 @@ model Withdrawal {
   amount    Int
   method    String                    // flooz | tmoney
   phone     String                    // withdrawal phone number
-  status    String  @default("pending") // pending | paid
+  status    String  @default("pending") // pending | paid | cancelled
   type      String                    // Remboursement 50% | Commission parrainage | Retrait manuel
   ref       String                    // human-readable ref, e.g. WD-005
+  note      String?                   // optional admin note (reason for cancellation, etc.)
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ──────────────────────────────────────────────
+// RevokedToken — JWT blacklist for real logout
+// ──────────────────────────────────────────────
+model RevokedToken {
+  id        String   @id @default(cuid())
+  token     String   @unique              // full JWT string (or its jti claim)
+  expiresAt DateTime                      // same expiry as the JWT — for cleanup
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ──────────────────────────────────────────────
+// AdminLog — audit trail for all admin actions
+// ──────────────────────────────────────────────
+model AdminLog {
+  id         String   @id @default(cuid())
+  adminId    String                    // User.id of the admin who acted
+  action     String                    // e.g. "withdrawal.paid", "user.suspend", "investment.complete"
+  targetId   String?                   // id of the affected record
+  targetType String?                   // "withdrawal" | "user" | "investment"
+  meta       String?                   // JSON string for extra context (amount, phone, etc.)
+  createdAt  DateTime @default(now())
+
+  target     User?    @relation("AdminTarget", fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([createdAt])
 }

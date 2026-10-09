@@ -3,16 +3,18 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import {
-  Users, TrendingUp, ArrowDownToLine, BarChart3,
+  Users, TrendingUp, ArrowDownToLine, BarChart3, GitBranch, ScrollText,
   CheckCircle2, Clock, XCircle, RefreshCw, Search,
   ChevronDown, ChevronUp, ShieldCheck, Pencil, Trash2, Save, X as XIcon,
+  ChevronLeft, ChevronRight, Download, Ban, UserCheck, Zap,
 } from 'lucide-react';
 import { ApiClientError } from '@/lib/api';
 import { fmt, formatDate, formatPhone } from '@/lib/format';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DouyinStats {
+  period: string;
   userCount: number;
   investmentCount: number;
   activeInvestments: number;
@@ -24,54 +26,49 @@ interface DouyinStats {
   totalWithdrawn: number;
   pendingWithdrawalAmount: number;
   totalCommissions: number;
+  planBreakdown: { planName: string; count: number; totalInvested: number; totalGain: number }[];
 }
 
 interface DouyinUser {
-  id: string;
-  phone: string;
-  name: string | null;
-  role: string;
-  referralCode: string;
-  referredBy: string | null;
-  createdAt: string;
-  investmentCount: number;
-  activeInvestments: number;
-  totalInvested: number;
-  totalGains: number;
-  totalRemb: number;
-  totalCommissions: number;
-  totalWithdrawn: number;
-  walletBalance: number;
+  id: string; phone: string; name: string | null; role: string;
+  suspended: boolean; referralCode: string; referredBy: string | null;
+  createdAt: string; investmentCount: number; activeInvestments: number;
+  totalInvested: number; totalRemb: number; totalGains: number;
+  totalCommissions: number; totalWithdrawn: number; walletBalance: number;
 }
 
 interface DouyinWithdrawal {
-  id: string;
-  amount: number;
-  method: string;
-  phone: string;
-  status: string;
-  type: string;
-  ref: string;
-  createdAt: string;
-  user: { phone: string; name: string | null };
+  id: string; amount: number; method: string; phone: string;
+  status: string; type: string; ref: string; note: string | null;
+  createdAt: string; user: { phone: string; name: string | null };
 }
 
 interface DouyinInvestment {
-  id: string;
-  planName: string;
-  amount: number;
-  remb: number;
-  gain: number;
-  status: string;
-  daysLeft: number;
-  expiresAt: string;
-  createdAt: string;
+  id: string; planName: string; amount: number; remb: number; gain: number;
+  status: string; daysLeft: number; expiresAt: string; createdAt: string;
   user: { phone: string; name: string | null };
 }
 
-type Tab = 'stats' | 'users' | 'withdrawals' | 'investments';
+interface DouyinReferral {
+  id: string; referredPhone: string; planName: string | null;
+  amount: number | null; commission: number; status: string; createdAt: string;
+  referrer: { phone: string; name: string | null; referralCode: string };
+}
 
-// ── API helper ───────────────────────────────────────────────────────────────
+interface AdminLog {
+  id: string; action: string; targetId: string | null; targetType: string | null;
+  meta: Record<string, unknown> | null; createdAt: string;
+  admin: { phone: string; name: string | null };
+  target: { phone: string; name: string | null } | null;
+}
+
+interface Pagination { page: number; limit: number; total: number; pages: number }
+interface ReferralGlobalStats { total: number; paidCount: number; totalCommission: number; conversionRate: number }
+
+type Tab = 'stats' | 'users' | 'withdrawals' | 'investments' | 'referrals' | 'logs';
+type SortDir = 'asc' | 'desc';
+
+// ── API helper ────────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -88,211 +85,317 @@ const planColors: Record<string, string> = {
   Argent: 'var(--text-400)', Premium: 'var(--red-600)',
 };
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+// ── CSV export helper ─────────────────────────────────────────────────────────
+
+function exportCSV(filename: string, rows: string[][], headers: string[]) {
+  const escape = (v: string) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines  = [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))];
+  const blob   = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url    = URL.createObjectURL(blob);
+  const a      = Object.assign(document.createElement('a'), { href: url, download: filename });
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ── Pagination bar ─────────────────────────────────────────────────────────────
+
+function PaginationBar({ p, onChange }: { p: Pagination; onChange: (page: number) => void }) {
+  if (p.pages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-400)' }}>
+      <span>{(p.page - 1) * p.limit + 1}–{Math.min(p.page * p.limit, p.total)} sur {p.total}</span>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <button className="btn btn-sm btn-outline" disabled={p.page <= 1} onClick={() => onChange(p.page - 1)} style={{ padding: '4px 8px' }}><ChevronLeft size={14} /></button>
+        {Array.from({ length: Math.min(5, p.pages) }, (_, i) => {
+          const page = Math.max(1, Math.min(p.pages - 4, p.page - 2)) + i;
+          return (
+            <button key={page} className={`btn btn-sm ${page === p.page ? 'btn-green' : 'btn-outline'}`}
+              style={{ padding: '4px 10px' }} onClick={() => onChange(page)}>{page}</button>
+          );
+        })}
+        <button className="btn btn-sm btn-outline" disabled={p.page >= p.pages} onClick={() => onChange(p.page + 1)} style={{ padding: '4px 8px' }}><ChevronRight size={14} /></button>
+      </div>
+    </div>
+  );
+}
+
+// ── Action label map ──────────────────────────────────────────────────────────
+
+const ACTION_LABELS: Record<string, { label: string; color: string }> = {
+  'withdrawal.paid':      { label: 'Retrait approuvé',    color: 'var(--green-600)' },
+  'withdrawal.cancelled': { label: 'Retrait refusé',      color: 'var(--red-600)'   },
+  'user.suspend':         { label: 'Utilisateur suspendu', color: 'var(--red-600)'  },
+  'user.unsuspend':       { label: 'Suspension levée',    color: 'var(--green-600)' },
+  'user.delete':          { label: 'Utilisateur supprimé', color: 'var(--red-600)'  },
+  'user.edit':            { label: 'Utilisateur modifié', color: 'var(--blue-600)'  },
+  'investment.complete':  { label: 'Invest. complété',    color: 'var(--amber-600)' },
+};
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function DouyinPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>('stats');
+  const [tab, setTab]       = useState<Tab>('stats');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError]   = useState('');
 
-  const [stats, setStats] = useState<DouyinStats | null>(null);
-  const [users, setUsers] = useState<DouyinUser[]>([]);
-  const [withdrawals, setWithdrawals] = useState<DouyinWithdrawal[]>([]);
-  const [investments, setInvestments] = useState<DouyinInvestment[]>([]);
+  // ── Data state ──
+  const [stats, setStats]           = useState<DouyinStats | null>(null);
+  const [statsPeriod, setStatsPeriod] = useState<'all' | 'today' | '7d' | '30d'>('all');
 
-  // Filters
+  const [users, setUsers]           = useState<DouyinUser[]>([]);
+  const [userPage, setUserPage]     = useState(1);
   const [userSearch, setUserSearch] = useState('');
-  const [wdFilter, setWdFilter] = useState<'all' | 'pending' | 'paid' | 'cancelled'>('pending');
-  const [invFilter, setInvFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [userPagination, setUserPagination] = useState<Pagination>({ page: 1, limit: 50, total: 0, pages: 1 });
+  const [userSort, setUserSort]     = useState<{ key: keyof DouyinUser; dir: SortDir }>({ key: 'createdAt', dir: 'desc' });
 
-  // Sort
-  type SortDir = 'asc' | 'desc';
-  const [userSort, setUserSort] = useState<{ key: keyof DouyinUser; dir: SortDir }>({ key: 'createdAt', dir: 'desc' });
+  const [withdrawals, setWithdrawals]     = useState<DouyinWithdrawal[]>([]);
+  const [wdPage, setWdPage]               = useState(1);
+  const [wdFilter, setWdFilter]           = useState<'all' | 'pending' | 'paid' | 'cancelled'>('pending');
+  const [wdSearch, setWdSearch]           = useState('');
+  const [wdSort, setWdSort]               = useState<'date' | 'amount'>('date');
+  const [wdDir, setWdDir]                 = useState<SortDir>('desc');
+  const [wdPagination, setWdPagination]   = useState<Pagination>({ page: 1, limit: 50, total: 0, pages: 1 });
 
-  // Edit user state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [editRole, setEditRole] = useState('');
+  const [investments, setInvestments]     = useState<DouyinInvestment[]>([]);
+  const [invPage, setInvPage]             = useState(1);
+  const [invFilter, setInvFilter]         = useState<'all' | 'active' | 'completed'>('all');
+  const [invPlanFilter, setInvPlanFilter] = useState('all');
+  const [invSearch, setInvSearch]         = useState('');
+  const [invPagination, setInvPagination] = useState<Pagination>({ page: 1, limit: 50, total: 0, pages: 1 });
+
+  const [referrals, setReferrals]         = useState<DouyinReferral[]>([]);
+  const [refPage, setRefPage]             = useState(1);
+  const [refFilter, setRefFilter]         = useState<'all' | 'pending' | 'paid'>('all');
+  const [refSearch, setRefSearch]         = useState('');
+  const [refPagination, setRefPagination] = useState<Pagination>({ page: 1, limit: 50, total: 0, pages: 1 });
+  const [refGlobalStats, setRefGlobalStats] = useState<ReferralGlobalStats | null>(null);
+
+  const [logs, setLogs]             = useState<AdminLog[]>([]);
+  const [logPage, setLogPage]       = useState(1);
+  const [logPagination, setLogPagination] = useState<Pagination>({ page: 1, limit: 50, total: 0, pages: 1 });
+
+  // ── Edit / action state ──
+  const [editingId, setEditingId]   = useState<string | null>(null);
+  const [editName, setEditName]     = useState('');
+  const [editPhone, setEditPhone]   = useState('');
+  const [editRole, setEditRole]     = useState('');
   const [editLoading, setEditLoading] = useState(false);
-  const [editError, setEditError] = useState('');
-
-  // Delete user state
+  const [editError, setEditError]   = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Withdrawal action state
-  const [wdLoading, setWdLoading] = useState<string | null>(null);
+  const [wdLoading, setWdLoading]   = useState<string | null>(null);
+  const [wdNoteId, setWdNoteId]     = useState<string | null>(null);
+  const [wdNote, setWdNote]         = useState('');
 
-  // ── Fetchers ─────────────────────────────────────────────────────────────
+  const [invLoading, setInvLoading] = useState<string | null>(null);
+  const [invEditId, setInvEditId]   = useState<string | null>(null);
+  const [invEditPlan, setInvEditPlan] = useState('');
+  const [suspendLoading, setSuspendLoading] = useState<string | null>(null);
 
-  const loadStats = useCallback(async () => {
-    const data = await apiFetch<DouyinStats>('/api/douyin/stats');
+  // ── Fetchers ──────────────────────────────────────────────────────────────
+
+  const loadStats = useCallback(async (period = statsPeriod) => {
+    const data = await apiFetch<DouyinStats>(`/api/douyin/stats?period=${period}`);
     setStats(data);
-  }, []);
+  }, [statsPeriod]);
 
-  const loadUsers = useCallback(async () => {
-    const data = await apiFetch<{ users: DouyinUser[] }>('/api/douyin/users');
+  const loadUsers = useCallback(async (page = userPage, search = userSearch) => {
+    const q = new URLSearchParams({ page: String(page), limit: '50', search });
+    const data = await apiFetch<{ users: DouyinUser[]; pagination: Pagination }>(`/api/douyin/users?${q}`);
     setUsers(data.users);
-  }, []);
+    setUserPagination(data.pagination);
+  }, [userPage, userSearch]);
 
-  const loadWithdrawals = useCallback(async () => {
-    const data = await apiFetch<{ withdrawals: DouyinWithdrawal[] }>('/api/douyin/withdrawals');
+  const loadWithdrawals = useCallback(async (page = wdPage, filter = wdFilter, search = wdSearch, sort = wdSort, dir = wdDir) => {
+    const q = new URLSearchParams({ page: String(page), limit: '50', status: filter, search, sort, dir });
+    const data = await apiFetch<{ withdrawals: DouyinWithdrawal[]; pagination: Pagination }>(`/api/douyin/withdrawals?${q}`);
     setWithdrawals(data.withdrawals);
-  }, []);
+    setWdPagination(data.pagination);
+  }, [wdPage, wdFilter, wdSearch, wdSort, wdDir]);
 
-  const loadInvestments = useCallback(async () => {
-    const data = await apiFetch<{ investments: DouyinInvestment[] }>('/api/douyin/investments');
+  const loadInvestments = useCallback(async (page = invPage, filter = invFilter, plan = invPlanFilter, search = invSearch) => {
+    const q = new URLSearchParams({ page: String(page), limit: '50', status: filter, plan, search });
+    const data = await apiFetch<{ investments: DouyinInvestment[]; pagination: Pagination }>(`/api/douyin/investments?${q}`);
     setInvestments(data.investments);
-  }, []);
+    setInvPagination(data.pagination);
+  }, [invPage, invFilter, invPlanFilter, invSearch]);
+
+  const loadReferrals = useCallback(async (page = refPage, filter = refFilter, search = refSearch) => {
+    const q = new URLSearchParams({ page: String(page), limit: '50', status: filter, search });
+    const data = await apiFetch<{ referrals: DouyinReferral[]; pagination: Pagination; globalStats: ReferralGlobalStats }>(`/api/douyin/referrals?${q}`);
+    setReferrals(data.referrals);
+    setRefPagination(data.pagination);
+    setRefGlobalStats(data.globalStats);
+  }, [refPage, refFilter, refSearch]);
+
+  const loadLogs = useCallback(async (page = logPage) => {
+    const q = new URLSearchParams({ page: String(page), limit: '50' });
+    const data = await apiFetch<{ logs: AdminLog[]; pagination: Pagination }>(`/api/douyin/logs?${q}`);
+    setLogs(data.logs);
+    setLogPagination(data.pagination);
+  }, [logPage]);
+
+  // ── Initial load ──
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        await Promise.all([loadStats(), loadUsers(), loadWithdrawals(), loadInvestments()]);
+        await Promise.all([loadStats(), loadUsers(), loadWithdrawals(), loadInvestments(), loadReferrals(), loadLogs()]);
       } catch (e) {
         if (e instanceof ApiClientError) {
           if (e.status === 403) { router.replace('/dashboard'); return; }
           setError(e.message);
-        } else {
-          setError('Erreur de chargement.');
-        }
-      } finally {
-        setLoading(false);
-      }
+        } else setError('Erreur de chargement.');
+      } finally { setLoading(false); }
     })();
-  }, [loadStats, loadUsers, loadWithdrawals, loadInvestments, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Withdrawal actions ────────────────────────────────────────────────────
 
-  const markWithdrawal = async (id: string, status: 'paid' | 'cancelled') => {
+  const markWithdrawal = async (id: string, status: 'paid' | 'cancelled', note?: string) => {
     setWdLoading(id);
     try {
       await apiFetch('/api/douyin/withdrawals', {
         method: 'PATCH',
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, note }),
       });
-      setWithdrawals((prev) => prev.map((w) => (w.id === id ? { ...w, status } : w)));
-      await loadStats();
-    } catch (e) {
-      alert(e instanceof ApiClientError ? e.message : 'Erreur');
-    } finally {
-      setWdLoading(null);
-    }
+      setWithdrawals(prev => prev.map(w => w.id === id ? { ...w, status, note: note ?? w.note } : w));
+      setWdNoteId(null); setWdNote('');
+      await Promise.all([loadStats(), loadLogs(1)]);
+    } catch (e) { alert(e instanceof ApiClientError ? e.message : 'Erreur'); }
+    finally { setWdLoading(null); }
   };
 
-  // ── User CRUD ─────────────────────────────────────────────────────────────
+  // ── Investment complete ───────────────────────────────────────────────────
+
+  const completeInvestment = async (id: string) => {
+    if (!confirm('Marquer cet investissement comme terminé ?')) return;
+    setInvLoading(id);
+    try {
+      await apiFetch('/api/douyin/investments', { method: 'PATCH', body: JSON.stringify({ id, action: 'complete' }) });
+      setInvestments(prev => prev.map(inv => inv.id === id ? { ...inv, status: 'completed', daysLeft: 0 } : inv));
+      await Promise.all([loadStats(), loadLogs(1)]);
+    } catch (e) { alert(e instanceof ApiClientError ? e.message : 'Erreur'); }
+    finally { setInvLoading(null); }
+  };
+
+  const changePlan = async (id: string, planName: string) => {
+    setInvLoading(id);
+    try {
+      const updated = await apiFetch<{ id: string; planName: string; amount: number; remb: number; gain: number }>(
+        '/api/douyin/investments',
+        { method: 'PATCH', body: JSON.stringify({ id, action: 'changePlan', planName }) }
+      );
+      setInvestments(prev => prev.map(inv =>
+        inv.id === id
+          ? { ...inv, planName: updated.planName, amount: updated.amount, remb: updated.remb, gain: updated.gain }
+          : inv
+      ));
+      setInvEditId(null);
+      await loadLogs(1);
+    } catch (e) { alert(e instanceof ApiClientError ? e.message : 'Erreur'); }
+    finally { setInvLoading(null); }
+  };
+
+  // ── User CRUD + suspend ───────────────────────────────────────────────────
 
   const startEdit = (u: DouyinUser) => {
-    setEditingId(u.id);
-    setEditName(u.name ?? '');
-    setEditPhone(u.phone);
-    setEditRole(u.role);
-    setEditError('');
+    setEditingId(u.id); setEditName(u.name ?? ''); setEditPhone(u.phone); setEditRole(u.role); setEditError('');
   };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditError('');
-  };
+  const cancelEdit = () => { setEditingId(null); setEditError(''); };
 
   const saveEdit = async (id: string) => {
-    setEditLoading(true);
-    setEditError('');
+    setEditLoading(true); setEditError('');
     try {
       const updated = await apiFetch<DouyinUser>('/api/douyin/users', {
         method: 'PATCH',
         body: JSON.stringify({ id, name: editName, phone: editPhone, role: editRole }),
       });
-      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)));
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, ...updated } : u));
       setEditingId(null);
-    } catch (e) {
-      setEditError(e instanceof ApiClientError ? e.message : 'Erreur');
-    } finally {
-      setEditLoading(false);
-    }
+      await loadLogs(1);
+    } catch (e) { setEditError(e instanceof ApiClientError ? e.message : 'Erreur'); }
+    finally { setEditLoading(false); }
+  };
+
+  const toggleSuspend = async (u: DouyinUser) => {
+    setSuspendLoading(u.id);
+    try {
+      await apiFetch('/api/douyin/users', {
+        method: 'PATCH',
+        body: JSON.stringify({ id: u.id, suspended: !u.suspended }),
+      });
+      setUsers(prev => prev.map(x => x.id === u.id ? { ...x, suspended: !x.suspended } : x));
+      await loadLogs(1);
+    } catch (e) { alert(e instanceof ApiClientError ? e.message : 'Erreur'); }
+    finally { setSuspendLoading(null); }
   };
 
   const deleteUser = async (id: string) => {
     setDeleteLoading(true);
     try {
-      await apiFetch('/api/douyin/users', {
-        method: 'DELETE',
-        body: JSON.stringify({ id }),
-      });
-      setUsers((prev) => prev.filter((u) => u.id !== id));
+      await apiFetch('/api/douyin/users', { method: 'DELETE', body: JSON.stringify({ id }) });
+      setUsers(prev => prev.filter(u => u.id !== id));
       setDeleteConfirm(null);
-      await loadStats();
-    } catch (e) {
-      alert(e instanceof ApiClientError ? e.message : 'Erreur');
-    } finally {
-      setDeleteLoading(false);
-    }
+      await Promise.all([loadStats(), loadLogs(1)]);
+    } catch (e) { alert(e instanceof ApiClientError ? e.message : 'Erreur'); }
+    finally { setDeleteLoading(false); }
   };
 
-  // ── Filtered / sorted ─────────────────────────────────────────────────────
+  // ── Sorted users (client-side, same page) ────────────────────────────────
 
-  const filteredUsers = users
-    .filter((u) => {
-      if (!userSearch) return true;
-      const q = userSearch.toLowerCase();
-      return u.phone.includes(q) || (u.name ?? '').toLowerCase().includes(q) || u.referralCode.toLowerCase().includes(q);
-    })
-    .sort((a, b) => {
-      const va = a[userSort.key] ?? '';
-      const vb = b[userSort.key] ?? '';
-      if (va < vb) return userSort.dir === 'asc' ? -1 : 1;
-      if (va > vb) return userSort.dir === 'asc' ? 1 : -1;
-      return 0;
-    });
+  const sortedUsers = [...users].sort((a, b) => {
+    const va = a[userSort.key] ?? ''; const vb = b[userSort.key] ?? '';
+    if (va < vb) return userSort.dir === 'asc' ? -1 : 1;
+    if (va > vb) return userSort.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  const toggleSort = (key: keyof DouyinUser) =>
+    setUserSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' });
 
-  const filteredWithdrawals = withdrawals.filter((w) =>
-    wdFilter === 'all' ? true : w.status === wdFilter
-  );
+  const pendingCount = withdrawals.filter(w => w.status === 'pending').length ||
+    (stats?.pendingWithdrawalCount ?? 0);
 
-  const filteredInvestments = investments.filter((inv) =>
-    invFilter === 'all' ? true : inv.status === invFilter
-  );
+  // ── CSV exports ───────────────────────────────────────────────────────────
 
-  const toggleSort = (key: keyof DouyinUser) => {
-    setUserSort((prev) =>
-      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' }
-    );
-  };
+  const exportWithdrawals = () => exportCSV('retraits.csv', withdrawals.map(w => [
+    w.ref, formatPhone(w.user.phone), w.user.name ?? '', String(w.amount), w.method, formatPhone(w.phone), w.type, w.status, w.note ?? '', formatDate(w.createdAt),
+  ]), ['Réf', 'Utilisateur', 'Nom', 'Montant', 'Méthode', 'N° paiement', 'Type', 'Statut', 'Note', 'Date']);
 
-  const pendingCount = withdrawals.filter((w) => w.status === 'pending').length;
+  const exportUsers = () => exportCSV('utilisateurs.csv', users.map(u => [
+    formatPhone(u.phone), u.name ?? '', u.role, u.suspended ? 'Oui' : 'Non', String(u.totalInvested), String(u.walletBalance), u.referralCode, formatDate(u.createdAt),
+  ]), ['Téléphone', 'Nom', 'Rôle', 'Suspendu', 'Total investi', 'Solde', 'Code parrain', 'Inscription']);
+
+  const exportInvestments = () => exportCSV('investissements.csv', investments.map(inv => [
+    formatPhone(inv.user.phone), inv.user.name ?? '', inv.planName, String(inv.amount), String(inv.remb), String(inv.gain), inv.status, String(inv.daysLeft), formatDate(inv.expiresAt), formatDate(inv.createdAt),
+  ]), ['Utilisateur', 'Nom', 'Plan', 'Montant', 'Remb', 'Gain', 'Statut', 'Jours restants', 'Expiration', 'Date']);
+
+  const exportReferrals = () => exportCSV('parrainages.csv', referrals.map(r => [
+    formatPhone(r.referrer.phone), r.referrer.name ?? '', r.referrer.referralCode, formatPhone(r.referredPhone), r.planName ?? '', String(r.amount ?? ''), String(r.commission), r.status, formatDate(r.createdAt),
+  ]), ['Parrain', 'Nom parrain', 'Code', 'Filleul', 'Plan', 'Montant investi', 'Commission', 'Statut', 'Date']);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (typeof window === 'undefined') return null;
+  if (loading) return (
+    <div className="app-layout"><Navbar />
+      <main className="main-content">
+        <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
+          Chargement du panel…
+        </div>
+      </main>
+    </div>
+  );
 
-  if (loading) {
-    return (
-      <div className="app-layout">
-        <Navbar />
-        <main className="main-content">
-          <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'var(--text-400)' }}>
-            Chargement du panel…
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="app-layout">
-        <Navbar />
-        <main className="main-content">
-          <div className="page-container" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--red-600)' }}>
-            {error}
-          </div>
-        </main>
-      </div>
-    );
-  }
+  if (error) return (
+    <div className="app-layout"><Navbar />
+      <main className="main-content">
+        <div className="page-container" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--red-600)' }}>{error}</div>
+      </main>
+    </div>
+  );
 
   return (
     <div className="app-layout">
@@ -300,60 +403,47 @@ export default function DouyinPage() {
       <main className="main-content">
         <div className="page-container">
 
-          {/* ── Header ── */}
+          {/* Header */}
           <div className="page-header">
             <div>
-              <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <ShieldCheck size={24} style={{ color: 'var(--primary)' }} />
-                Panel Administration
-              </h1>
+              <h1 className="page-title"><ShieldCheck size={24} style={{ color: 'var(--primary)' }} /> Panel Administration</h1>
               <p className="page-subtitle">Vue d&apos;ensemble et gestion de la plateforme LEED Togo.</p>
             </div>
-            <button
-              className="btn btn-outline btn-sm"
-              onClick={() => Promise.all([loadStats(), loadUsers(), loadWithdrawals(), loadInvestments()])}
-            >
+            <button className="btn btn-outline btn-sm" onClick={() => Promise.all([loadStats(), loadUsers(), loadWithdrawals(), loadInvestments(), loadReferrals(), loadLogs()])}>
               <RefreshCw size={13} /> Actualiser
             </button>
           </div>
 
-          {/* Alerte retraits en attente */}
-          {pendingCount > 0 && (
-            <div
-              onClick={() => { setTab('withdrawals'); setWdFilter('pending'); }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer',
-                background: 'var(--amber-50)', border: '1px solid var(--amber-100)',
-                borderRadius: 'var(--r-md)', padding: '12px 18px', marginBottom: '20px',
-              }}
-            >
+          {/* Alerte retraits */}
+          {(stats?.pendingWithdrawalCount ?? 0) > 0 && (
+            <div onClick={() => { setTab('withdrawals'); setWdFilter('pending'); }}
+              style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', background: 'var(--amber-50)', border: '1px solid var(--amber-100)', borderRadius: 'var(--r-md)', padding: '12px 18px', marginBottom: '20px' }}>
               <Clock size={18} style={{ color: 'var(--amber-600)', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <span style={{ fontWeight: 800, fontSize: '13.5px', color: 'var(--amber-600)' }}>
-                  {pendingCount} retrait{pendingCount > 1 ? 's' : ''} en attente d&apos;approbation
+                <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--amber-600)' }}>
+                  {stats!.pendingWithdrawalCount} retrait{stats!.pendingWithdrawalCount > 1 ? 's' : ''} en attente
                 </span>
-                <span style={{ fontSize: '12px', color: 'var(--text-500)', marginLeft: '8px' }}>
-                  · {fmt(withdrawals.filter(w => w.status === 'pending').reduce((s, w) => s + w.amount, 0))} FCFA
+                <span style={{ fontSize: '13px', color: 'var(--text-500)', marginLeft: '8px' }}>
+                  · {fmt(stats!.pendingWithdrawalAmount)} FCFA
                 </span>
               </div>
-              <span style={{ fontSize: '12px', color: 'var(--amber-600)', fontWeight: 700 }}>Voir →</span>
+              <span style={{ fontSize: '13px', color: 'var(--amber-600)', fontWeight: 700 }}>Voir →</span>
             </div>
           )}
 
-          {/* ── Tabs ── */}
+          {/* Tabs */}
           <div className="admin-tabs" style={{ display: 'flex', gap: '6px', marginBottom: '24px', flexWrap: 'wrap' }}>
             {([
-              { id: 'stats',       label: 'Statistiques',   icon: BarChart3 },
-              { id: 'users',       label: `Utilisateurs (${users.length})`, icon: Users },
-              { id: 'withdrawals', label: `Retraits${pendingCount > 0 ? ` (${pendingCount} ⚠)` : ''}`, icon: ArrowDownToLine },
-              { id: 'investments', label: `Invest. (${investments.length})`, icon: TrendingUp },
+              { id: 'stats',       label: 'Statistiques',                     icon: BarChart3       },
+              { id: 'users',       label: `Utilisateurs (${userPagination.total || users.length})`, icon: Users },
+              { id: 'withdrawals', label: `Retraits${(stats?.pendingWithdrawalCount ?? 0) > 0 ? ` (${stats!.pendingWithdrawalCount} ⚠)` : ''}`, icon: ArrowDownToLine },
+              { id: 'investments', label: `Investissements (${invPagination.total || investments.length})`, icon: TrendingUp },
+              { id: 'referrals',   label: `Parrainages (${refGlobalStats?.total ?? 0})`, icon: GitBranch },
+              { id: 'logs',        label: 'Journal',                           icon: ScrollText      },
             ] as { id: Tab; label: string; icon: React.ComponentType<{ size?: number }> }[]).map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setTab(id)}
+              <button key={id} onClick={() => setTab(id)}
                 className={`nav-item${tab === id ? ' active' : ''}`}
-                style={{ cursor: 'pointer', border: 'none', background: tab === id ? undefined : 'var(--bg-card)', borderRadius: 'var(--r-sm)', flex: 1 }}
-              >
+                style={{ cursor: 'pointer', border: 'none', background: tab === id ? undefined : 'var(--bg-card)', borderRadius: 'var(--r-sm)', flex: 1 }}>
                 <Icon size={14} /> {label}
               </button>
             ))}
@@ -364,6 +454,16 @@ export default function DouyinPage() {
           ═══════════════════════════════════════ */}
           {tab === 'stats' && stats && (
             <div>
+              {/* Sélecteur période */}
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                {([['all', 'Tout'], ['today', "Aujourd'hui"], ['7d', '7 jours'], ['30d', '30 jours']] as const).map(([p, label]) => (
+                  <button key={p} className={`btn btn-sm ${statsPeriod === p ? 'btn-green' : 'btn-outline'}`}
+                    onClick={async () => { setStatsPeriod(p); await loadStats(p); }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="stats-grid" style={{ marginBottom: '24px' }}>
                 <div className="stat-card stat-card-primary">
                   <div className="stat-icon"><Users size={17} /></div>
@@ -393,11 +493,9 @@ export default function DouyinPage() {
                 </div>
               </div>
 
-              <div className="grid-2">
+              <div className="grid-2" style={{ marginBottom: '24px' }}>
                 <div className="card">
-                  <div className="section-header" style={{ marginBottom: '16px' }}>
-                    <div className="section-title"><TrendingUp size={15} style={{ color: 'var(--green-600)' }} /> Investissements</div>
-                  </div>
+                  <div className="section-title" style={{ marginBottom: '14px' }}><TrendingUp size={15} style={{ color: 'var(--green-600)' }} /> Investissements</div>
                   {[
                     { label: 'Total', value: stats.investmentCount, isCount: true },
                     { label: 'Actifs', value: stats.activeInvestments, isCount: true, color: 'var(--primary)' },
@@ -406,17 +504,15 @@ export default function DouyinPage() {
                     { label: 'Gains distribués', value: stats.totalGainsPaid, color: 'var(--amber-600)' },
                   ].map(({ label, value, isCount, color }) => (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: '13px', color: 'var(--text-500)' }}>{label}</span>
-                      <span style={{ fontWeight: 800, fontSize: '14px', color: color ?? 'var(--text-900)' }}>
+                      <span style={{ fontSize: '14px', color: 'var(--text-500)' }}>{label}</span>
+                      <span style={{ fontWeight: 800, fontSize: '15px', color: color ?? 'var(--text-900)' }}>
                         {isCount ? value : `${fmt(value as number)} FCFA`}
                       </span>
                     </div>
                   ))}
                 </div>
                 <div className="card">
-                  <div className="section-header" style={{ marginBottom: '16px' }}>
-                    <div className="section-title"><ArrowDownToLine size={15} style={{ color: 'var(--amber-600)' }} /> Retraits & Commissions</div>
-                  </div>
+                  <div className="section-title" style={{ marginBottom: '14px' }}><ArrowDownToLine size={15} style={{ color: 'var(--amber-600)' }} /> Retraits & Commissions</div>
                   {[
                     { label: 'Total retraits', value: stats.withdrawalCount, isCount: true },
                     { label: 'En attente', value: stats.pendingWithdrawalCount, isCount: true, color: 'var(--violet-600)' },
@@ -425,14 +521,42 @@ export default function DouyinPage() {
                     { label: 'Commissions parrainage', value: stats.totalCommissions, color: 'var(--amber-600)' },
                   ].map(({ label, value, isCount, color }) => (
                     <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: '13px', color: 'var(--text-500)' }}>{label}</span>
-                      <span style={{ fontWeight: 800, fontSize: '14px', color: color ?? 'var(--text-900)' }}>
+                      <span style={{ fontSize: '14px', color: 'var(--text-500)' }}>{label}</span>
+                      <span style={{ fontWeight: 800, fontSize: '15px', color: color ?? 'var(--text-900)' }}>
                         {isCount ? value : `${fmt(value as number)} FCFA`}
                       </span>
                     </div>
                   ))}
                 </div>
               </div>
+
+              {/* Répartition par plan */}
+              {stats.planBreakdown.length > 0 && (
+                <div className="card">
+                  <div className="section-title" style={{ marginBottom: '14px' }}><GitBranch size={15} /> Répartition par plan</div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bg-subtle)' }}>
+                          {['Plan', 'Investissements', 'Total investi', 'Gains potentiels'].map(h => (
+                            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-400)' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.planBreakdown.map(p => (
+                          <tr key={p.planName} style={{ borderTop: '1px solid var(--border)' }}>
+                            <td style={{ padding: '10px 14px', fontWeight: 800, color: planColors[p.planName] ?? 'var(--text-900)' }}>{p.planName}</td>
+                            <td style={{ padding: '10px 14px' }}>{p.count}</td>
+                            <td style={{ padding: '10px 14px', fontWeight: 700 }}>{fmt(p.totalInvested)} FCFA</td>
+                            <td style={{ padding: '10px 14px', color: 'var(--amber-600)', fontWeight: 700 }}>{fmt(p.totalGain)} FCFA</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -441,142 +565,115 @@ export default function DouyinPage() {
           ═══════════════════════════════════════ */}
           {tab === 'users' && (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }} className="admin-section-header">
-                <div className="section-title" style={{ flex: 1 }}>
-                  <Users size={15} style={{ color: 'var(--primary)' }} /> Utilisateurs inscrits
-                </div>
-                <div style={{ position: 'relative', minWidth: '200px', width: '100%', maxWidth: '280px' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="section-title" style={{ flex: 1 }}><Users size={15} style={{ color: 'var(--primary)' }} /> Utilisateurs inscrits</div>
+                <div style={{ position: 'relative', minWidth: '200px' }}>
                   <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-400)' }} />
-                  <input
-                    className="form-input" style={{ paddingLeft: '30px', margin: 0 }}
-                    placeholder="Rechercher…"
-                    value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
-                  />
+                  <input className="form-input" style={{ paddingLeft: '30px', margin: 0 }} placeholder="Rechercher…"
+                    value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }}
+                    onKeyDown={e => e.key === 'Enter' && loadUsers(1, userSearch)} />
                 </div>
+                <button className="btn btn-sm btn-outline" onClick={() => loadUsers(1, userSearch)}><Search size={12} /></button>
+                <button className="btn btn-sm btn-outline" onClick={exportUsers}><Download size={12} /> CSV</button>
               </div>
 
-              <div className="admin-table-wrap">
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '780px' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '900px' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
                       {([
                         { key: 'phone',        label: 'Téléphone' },
                         { key: 'name',         label: 'Nom' },
                         { key: 'role',         label: 'Rôle' },
-                        { key: 'totalInvested', label: 'Total investi' },
-                        { key: 'walletBalance', label: 'Solde' },
-                        { key: 'referralCode', label: 'Code parrain' },
+                        { key: 'totalInvested', label: 'Investi' },
+                        { key: 'walletBalance', label: 'Solde réel' },
+                        { key: 'referralCode', label: 'Code' },
                         { key: 'createdAt',    label: 'Inscription' },
                       ] as { key: keyof DouyinUser; label: string }[]).map(({ key, label }) => (
                         <th key={key} onClick={() => toggleSort(key)}
-                          style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-500)', cursor: 'pointer', whiteSpace: 'nowrap', userSelect: 'none' }}>
+                          style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-400)', cursor: 'pointer', whiteSpace: 'nowrap', userSelect: 'none' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             {label}
                             {userSort.key === key ? (userSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : null}
                           </span>
                         </th>
                       ))}
-                      <th style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-500)' }}>Actions</th>
+                      <th style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-400)' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((u) => {
+                    {sortedUsers.map(u => {
                       const isEditing = editingId === u.id;
                       return (
-                        <tr key={u.id} style={{ borderBottom: '1px solid var(--border)', background: isEditing ? 'var(--primary-pale)' : undefined }}
-                          onMouseEnter={(e) => { if (!isEditing) e.currentTarget.style.background = 'var(--bg-subtle)'; }}
-                          onMouseLeave={(e) => { if (!isEditing) e.currentTarget.style.background = ''; }}
-                        >
-                          <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-900)', whiteSpace: 'nowrap' }}>
-                            {isEditing ? (
-                              <input className="form-input" style={{ margin: 0, padding: '5px 8px', fontSize: '12px', width: '110px' }}
-                                value={editPhone} onChange={(e) => setEditPhone(e.target.value.replace(/\D/g, ''))} maxLength={8} />
-                            ) : formatPhone(u.phone)}
+                        <tr key={u.id} style={{ borderBottom: '1px solid var(--border)', background: isEditing ? 'var(--primary-pale)' : u.suspended ? 'var(--red-50)' : undefined }}
+                          onMouseEnter={e => { if (!isEditing) e.currentTarget.style.background = 'var(--bg-subtle)'; }}
+                          onMouseLeave={e => { if (!isEditing) e.currentTarget.style.background = u.suspended ? 'var(--red-50)' : ''; }}>
+                          <td style={{ padding: '10px 14px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            {isEditing
+                              ? <input className="form-input" style={{ margin: 0, padding: '5px 8px', width: '110px' }} value={editPhone} onChange={e => setEditPhone(e.target.value.replace(/\D/g, ''))} maxLength={8} />
+                              : <span style={{ color: u.suspended ? 'var(--red-600)' : 'var(--text-900)' }}>{formatPhone(u.phone)}</span>}
                           </td>
                           <td style={{ padding: '10px 14px', color: 'var(--text-500)' }}>
-                            {isEditing ? (
-                              <input className="form-input" style={{ margin: 0, padding: '5px 8px', fontSize: '12px', width: '130px' }}
-                                placeholder="Nom complet" value={editName} onChange={(e) => setEditName(e.target.value)} />
-                            ) : (u.name ?? <span style={{ color: 'var(--text-400)', fontStyle: 'italic' }}>—</span>)}
+                            {isEditing
+                              ? <input className="form-input" style={{ margin: 0, padding: '5px 8px', width: '130px' }} placeholder="Nom" value={editName} onChange={e => setEditName(e.target.value)} />
+                              : u.name ?? <span style={{ color: 'var(--text-400)', fontStyle: 'italic' }}>—</span>}
                           </td>
                           <td style={{ padding: '10px 14px' }}>
-                            {isEditing ? (
-                              <select className="form-input" style={{ margin: 0, padding: '5px 8px', fontSize: '12px', width: '90px' }}
-                                value={editRole} onChange={(e) => setEditRole(e.target.value)}>
-                                <option value="user">user</option>
-                                <option value="douyin">douyin</option>
-                              </select>
-                            ) : (
-                              <span className={`badge ${u.role === 'douyin' ? 'badge-paid' : 'badge-pending'}`} style={{ fontSize: '11px' }}>
-                                {u.role === 'douyin' ? <ShieldCheck size={10} /> : null} {u.role}
-                              </span>
-                            )}
+                            {isEditing
+                              ? <select className="form-input" style={{ margin: 0, padding: '5px 8px', width: '90px' }} value={editRole} onChange={e => setEditRole(e.target.value)}>
+                                  <option value="user">user</option>
+                                  <option value="douyin">douyin</option>
+                                </select>
+                              : <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span className={`badge ${u.role === 'douyin' ? 'badge-paid' : 'badge-pending'}`} style={{ fontSize: '12px' }}>
+                                    {u.role === 'douyin' && <ShieldCheck size={10} />} {u.role}
+                                  </span>
+                                  {u.suspended && <span className="badge" style={{ background: 'var(--red-100)', color: 'var(--red-600)', fontSize: '11px' }}><Ban size={9} /> Suspendu</span>}
+                                </span>}
                           </td>
-                          <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--amber-600)', whiteSpace: 'nowrap' }}>
-                            {fmt(u.totalInvested)} FCFA
-                          </td>
-                          <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
-                            {fmt(u.walletBalance)} FCFA
-                          </td>
-                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--green-600)', fontWeight: 700 }}>
-                            {u.referralCode}
-                          </td>
-                          <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>
-                            {formatDate(u.createdAt)}
-                          </td>
+                          <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--amber-600)', whiteSpace: 'nowrap' }}>{fmt(u.totalInvested)} FCFA</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>{fmt(u.walletBalance)} FCFA</td>
+                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '13px', color: 'var(--green-600)', fontWeight: 700 }}>{u.referralCode}</td>
+                          <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{formatDate(u.createdAt)}</td>
                           <td style={{ padding: '10px 14px' }}>
-                            {isEditing ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                {editError && <div style={{ fontSize: '11px', color: 'var(--red-600)', marginBottom: '2px' }}>{editError}</div>}
-                                <div style={{ display: 'flex', gap: '6px' }}>
-                                  <button className="btn btn-sm btn-green" style={{ padding: '4px 10px', fontSize: '12px' }}
-                                    disabled={editLoading} onClick={() => saveEdit(u.id)}>
-                                    <Save size={11} /> {editLoading ? '…' : 'OK'}
-                                  </button>
-                                  <button className="btn btn-sm btn-outline" style={{ padding: '4px 10px', fontSize: '12px' }}
-                                    onClick={cancelEdit}>
-                                    <XIcon size={11} />
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', gap: '6px' }}>
-                                <button className="btn btn-sm btn-outline" style={{ padding: '4px 10px', fontSize: '12px' }}
-                                  onClick={() => startEdit(u)} title="Modifier">
-                                  <Pencil size={11} />
-                                </button>
-                                {deleteConfirm === u.id ? (
-                                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                                    <button className="btn btn-sm" style={{ padding: '4px 8px', fontSize: '11px', background: 'var(--red-600)', color: '#fff', border: 'none' }}
-                                      disabled={deleteLoading} onClick={() => deleteUser(u.id)}>
-                                      {deleteLoading ? '…' : 'Oui'}
+                            {isEditing
+                              ? <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  {editError && <div style={{ fontSize: '12px', color: 'var(--red-600)' }}>{editError}</div>}
+                                  <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button className="btn btn-sm btn-green" style={{ padding: '4px 10px' }} disabled={editLoading} onClick={() => saveEdit(u.id)}>
+                                      <Save size={11} /> {editLoading ? '…' : 'OK'}
                                     </button>
-                                    <button className="btn btn-sm btn-outline" style={{ padding: '4px 8px', fontSize: '11px' }}
-                                      onClick={() => setDeleteConfirm(null)}>Non</button>
+                                    <button className="btn btn-sm btn-outline" style={{ padding: '4px 10px' }} onClick={cancelEdit}><XIcon size={11} /></button>
                                   </div>
-                                ) : (
-                                  <button className="btn btn-sm btn-outline" style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--red-600)', borderColor: 'var(--red-100)' }}
-                                    onClick={() => setDeleteConfirm(u.id)} title="Supprimer">
-                                    <Trash2 size={11} />
+                                </div>
+                              : <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                                  <button className="btn btn-sm btn-outline" style={{ padding: '4px 8px' }} onClick={() => startEdit(u)}><Pencil size={11} /></button>
+                                  <button className={`btn btn-sm btn-outline`}
+                                    style={{ padding: '4px 8px', color: u.suspended ? 'var(--green-600)' : 'var(--amber-600)', borderColor: u.suspended ? 'var(--green-100)' : 'var(--amber-100)' }}
+                                    disabled={suspendLoading === u.id} onClick={() => toggleSuspend(u)}
+                                    title={u.suspended ? 'Lever la suspension' : 'Suspendre'}>
+                                    {suspendLoading === u.id ? '…' : u.suspended ? <UserCheck size={11} /> : <Ban size={11} />}
                                   </button>
-                                )}
-                              </div>
-                            )}
+                                  {deleteConfirm === u.id
+                                    ? <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                        <button className="btn btn-sm" style={{ padding: '4px 8px', background: 'var(--red-600)', color: '#fff', border: 'none' }}
+                                          disabled={deleteLoading} onClick={() => deleteUser(u.id)}>{deleteLoading ? '…' : 'Oui'}</button>
+                                        <button className="btn btn-sm btn-outline" style={{ padding: '4px 8px' }} onClick={() => setDeleteConfirm(null)}>Non</button>
+                                      </div>
+                                    : <button className="btn btn-sm btn-outline" style={{ padding: '4px 8px', color: 'var(--red-600)', borderColor: 'var(--red-100)' }}
+                                        onClick={() => setDeleteConfirm(u.id)}><Trash2 size={11} /></button>}
+                                </div>}
                           </td>
                         </tr>
                       );
                     })}
-                    {filteredUsers.length === 0 && (
-                      <tr>
-                        <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-400)' }}>
-                          Aucun utilisateur trouvé.
-                        </td>
-                      </tr>
+                    {sortedUsers.length === 0 && (
+                      <tr><td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-400)' }}>Aucun utilisateur trouvé.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              <PaginationBar p={userPagination} onChange={p => { setUserPage(p); loadUsers(p, userSearch); }} />
             </div>
           )}
 
@@ -585,95 +682,110 @@ export default function DouyinPage() {
           ═══════════════════════════════════════ */}
           {tab === 'withdrawals' && (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-
-              <div className="admin-section-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div className="section-title" style={{ flex: 1 }}>
-                  <ArrowDownToLine size={15} style={{ color: 'var(--amber-600)' }} /> Demandes de retrait
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="section-title" style={{ flex: 1 }}><ArrowDownToLine size={15} style={{ color: 'var(--amber-600)' }} /> Demandes de retrait</div>
+                <div style={{ position: 'relative' }}>
+                  <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-400)' }} />
+                  <input className="form-input" style={{ paddingLeft: '30px', margin: 0, width: '180px' }} placeholder="Réf ou numéro…"
+                    value={wdSearch} onChange={e => setWdSearch(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && loadWithdrawals(1, wdFilter, wdSearch, wdSort, wdDir)} />
                 </div>
-                <div className="admin-filter-row" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {([
-                    { f: 'pending' as const, label: `En attente (${pendingCount})` },
-                    { f: 'all' as const, label: 'Tous' },
-                    { f: 'paid' as const, label: 'Payés' },
-                    { f: 'cancelled' as const, label: 'Annulés' },
-                  ]).map(({ f, label }) => (
-                    <button key={f} onClick={() => setWdFilter(f)}
-                      className={`btn btn-sm${wdFilter === f ? ' btn-green' : ' btn-outline'}`}>
+                {/* Filtre statut */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {([['pending', `En attente (${stats?.pendingWithdrawalCount ?? ''})`], ['all', 'Tous'], ['paid', 'Payés'], ['cancelled', 'Annulés']] as const).map(([f, label]) => (
+                    <button key={f} className={`btn btn-sm ${wdFilter === f ? 'btn-green' : 'btn-outline'}`}
+                      onClick={() => { setWdFilter(f); loadWithdrawals(1, f, wdSearch, wdSort, wdDir); }}>
                       {label}
                     </button>
                   ))}
                 </div>
+                {/* Tri */}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button className={`btn btn-sm ${wdSort === 'date' ? 'btn-green' : 'btn-outline'}`}
+                    onClick={() => { const d = wdSort === 'date' ? (wdDir === 'desc' ? 'asc' : 'desc') : 'desc'; setWdSort('date'); setWdDir(d); loadWithdrawals(1, wdFilter, wdSearch, 'date', d); }}>
+                    Date {wdSort === 'date' ? (wdDir === 'asc' ? '↑' : '↓') : ''}
+                  </button>
+                  <button className={`btn btn-sm ${wdSort === 'amount' ? 'btn-green' : 'btn-outline'}`}
+                    onClick={() => { const d = wdSort === 'amount' ? (wdDir === 'desc' ? 'asc' : 'desc') : 'desc'; setWdSort('amount'); setWdDir(d); loadWithdrawals(1, wdFilter, wdSearch, 'amount', d); }}>
+                    Montant {wdSort === 'amount' ? (wdDir === 'asc' ? '↑' : '↓') : ''}
+                  </button>
+                </div>
+                <button className="btn btn-sm btn-outline" onClick={exportWithdrawals}><Download size={12} /> CSV</button>
               </div>
 
-              <div className="admin-table-wrap">
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '820px' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '900px' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                      {['Réf', 'Utilisateur', 'Montant', 'Méthode', 'N° paiement', 'Type', 'Statut', 'Date', 'Actions'].map((h) => (
-                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-500)', whiteSpace: 'nowrap' }}>{h}</th>
+                      {['Réf', 'Utilisateur', 'Montant', 'Méthode', 'N° paiement', 'Type', 'Statut', 'Note', 'Date', 'Actions'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredWithdrawals.map((w) => (
+                    {withdrawals.map(w => (
                       <tr key={w.id} style={{ borderBottom: '1px solid var(--border)', background: w.status === 'pending' ? 'var(--amber-50)' : undefined }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = w.status === 'pending' ? 'var(--amber-50)' : '')}
-                      >
-                        <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12px', color: 'var(--green-600)', fontWeight: 700 }}>{w.ref}</td>
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = w.status === 'pending' ? 'var(--amber-50)' : '')}>
+                        <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '13px', color: 'var(--green-600)', fontWeight: 700 }}>{w.ref}</td>
                         <td style={{ padding: '10px 14px' }}>
                           <div style={{ fontWeight: 700, color: 'var(--text-900)' }}>{formatPhone(w.user.phone)}</div>
-                          {w.user.name && <div style={{ fontSize: '11.5px', color: 'var(--text-400)' }}>{w.user.name}</div>}
+                          {w.user.name && <div style={{ fontSize: '12px', color: 'var(--text-400)' }}>{w.user.name}</div>}
                         </td>
-                        <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
-                          {fmt(w.amount)} FCFA
-                        </td>
+                        <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>{fmt(w.amount)} FCFA</td>
                         <td style={{ padding: '10px 14px' }}>
-                          <span className="badge badge-pending" style={{ textTransform: 'uppercase', fontSize: '11px' }}>{w.method}</span>
+                          <span className="badge badge-pending" style={{ textTransform: 'uppercase', fontSize: '12px' }}>{w.method}</span>
                         </td>
-                        <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '12.5px', color: 'var(--text-700)' }}>
-                          {formatPhone(w.phone)}
-                        </td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text-500)', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {w.type}
-                        </td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-700)' }}>{formatPhone(w.phone)}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-500)', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.type}</td>
                         <td style={{ padding: '10px 14px' }}>
-                          <span className={`badge ${w.status === 'paid' ? 'badge-paid' : ''}`}
-                            style={w.status === 'cancelled' ? { background: 'var(--red-50)', color: 'var(--red-600)' }
-                              : w.status === 'pending' ? { background: 'var(--amber-100)', color: 'var(--amber-600)' } : {}}>
+                          <span className="badge"
+                            style={w.status === 'paid' ? { background: 'var(--green-100)', color: 'var(--green-600)' }
+                              : w.status === 'cancelled' ? { background: 'var(--red-50)', color: 'var(--red-600)' }
+                              : { background: 'var(--amber-100)', color: 'var(--amber-600)' }}>
                             {w.status === 'paid' ? <CheckCircle2 size={10} /> : w.status === 'cancelled' ? <XCircle size={10} /> : <Clock size={10} />}
                             {w.status === 'paid' ? 'Payé' : w.status === 'cancelled' ? 'Annulé' : 'En attente'}
                           </span>
                         </td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>
-                          {formatDate(w.createdAt)}
+                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-400)', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {w.note ?? '—'}
                         </td>
-                        <td style={{ padding: '10px 14px' }}>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{formatDate(w.createdAt)}</td>
+                        <td style={{ padding: '10px 14px', minWidth: '200px' }}>
                           {w.status === 'pending' && (
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button className="btn btn-sm btn-green" style={{ padding: '4px 10px', fontSize: '12px' }}
-                                disabled={wdLoading === w.id} onClick={() => markWithdrawal(w.id, 'paid')}>
-                                {wdLoading === w.id ? '…' : <><CheckCircle2 size={11} /> Approuver</>}
-                              </button>
-                              <button className="btn btn-sm btn-outline" style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--red-600)', borderColor: 'var(--red-100)' }}
-                                disabled={wdLoading === w.id} onClick={() => markWithdrawal(w.id, 'cancelled')}>
-                                <XCircle size={11} /> Refuser
-                              </button>
-                            </div>
+                            wdNoteId === w.id
+                              ? <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <input className="form-input" style={{ margin: 0, padding: '5px 8px', fontSize: '13px' }}
+                                    placeholder="Raison du refus…" value={wdNote} onChange={e => setWdNote(e.target.value)} />
+                                  <div style={{ display: 'flex', gap: '5px' }}>
+                                    <button className="btn btn-sm" style={{ padding: '4px 8px', background: 'var(--red-600)', color: '#fff', border: 'none', fontSize: '12px' }}
+                                      disabled={wdLoading === w.id} onClick={() => markWithdrawal(w.id, 'cancelled', wdNote)}>
+                                      {wdLoading === w.id ? '…' : 'Confirmer'}
+                                    </button>
+                                    <button className="btn btn-sm btn-outline" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => { setWdNoteId(null); setWdNote(''); }}>Annuler</button>
+                                  </div>
+                                </div>
+                              : <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button className="btn btn-sm btn-green" style={{ padding: '4px 10px', fontSize: '13px' }}
+                                    disabled={wdLoading === w.id} onClick={() => markWithdrawal(w.id, 'paid')}>
+                                    {wdLoading === w.id ? '…' : <><CheckCircle2 size={11} /> Approuver</>}
+                                  </button>
+                                  <button className="btn btn-sm btn-outline" style={{ padding: '4px 10px', fontSize: '13px', color: 'var(--red-600)', borderColor: 'var(--red-100)' }}
+                                    onClick={() => { setWdNoteId(w.id); setWdNote(''); }}>
+                                    <XCircle size={11} /> Refuser
+                                  </button>
+                                </div>
                           )}
                         </td>
                       </tr>
                     ))}
-                    {filteredWithdrawals.length === 0 && (
-                      <tr>
-                        <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-400)' }}>
-                          Aucune demande de retrait.
-                        </td>
-                      </tr>
+                    {withdrawals.length === 0 && (
+                      <tr><td colSpan={10} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-400)' }}>Aucune demande de retrait.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              <PaginationBar p={wdPagination} onChange={p => { setWdPage(p); loadWithdrawals(p, wdFilter, wdSearch, wdSort, wdDir); }} />
             </div>
           )}
 
@@ -682,45 +794,53 @@ export default function DouyinPage() {
           ═══════════════════════════════════════ */}
           {tab === 'investments' && (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-
-              <div className="admin-section-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div className="section-title" style={{ flex: 1 }}>
-                  <TrendingUp size={15} style={{ color: 'var(--green-600)' }} /> Tous les investissements
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="section-title" style={{ flex: 1 }}><TrendingUp size={15} style={{ color: 'var(--green-600)' }} /> Tous les investissements</div>
+                <div style={{ position: 'relative' }}>
+                  <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-400)' }} />
+                  <input className="form-input" style={{ paddingLeft: '30px', margin: 0, width: '160px' }} placeholder="N° téléphone…"
+                    value={invSearch} onChange={e => setInvSearch(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && loadInvestments(1, invFilter, invPlanFilter, invSearch)} />
                 </div>
-                <div className="admin-filter-row" style={{ display: 'flex', gap: '6px' }}>
-                  {(['all', 'active', 'completed'] as const).map((f) => (
-                    <button key={f} onClick={() => setInvFilter(f)}
-                      className={`btn btn-sm${invFilter === f ? ' btn-green' : ' btn-outline'}`}>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {(['all', 'active', 'completed'] as const).map(f => (
+                    <button key={f} className={`btn btn-sm ${invFilter === f ? 'btn-green' : 'btn-outline'}`}
+                      onClick={() => { setInvFilter(f); loadInvestments(1, f, invPlanFilter, invSearch); }}>
                       {f === 'all' ? 'Tous' : f === 'active' ? 'Actifs' : 'Terminés'}
                     </button>
                   ))}
                 </div>
+                <select className="form-input" style={{ margin: 0, padding: '6px 10px', width: 'auto' }}
+                  value={invPlanFilter} onChange={e => { setInvPlanFilter(e.target.value); loadInvestments(1, invFilter, e.target.value, invSearch); }}>
+                  <option value="all">Tous les plans</option>
+                  {['Starter', 'Argent', 'Or', 'Premium'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <button className="btn btn-sm btn-outline" onClick={exportInvestments}><Download size={12} /> CSV</button>
               </div>
 
-              <div className="admin-table-wrap">
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '820px' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '900px' }}>
                   <thead>
                     <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
-                      {['Utilisateur', 'Plan', 'Montant', 'Remb. 50%', 'Gain J+30', 'Statut', 'Jours', 'Expiration', 'Date'].map((h) => (
-                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-500)', whiteSpace: 'nowrap' }}>{h}</th>
+                      {['Utilisateur', 'Plan', 'Montant', 'Remb. 50%', 'Gain J+30', 'Statut', 'Jours restants', 'Expiration', 'Date', 'Actions'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredInvestments.map((inv) => {
+                    {investments.map(inv => {
                       const color = planColors[inv.planName] ?? 'var(--text-500)';
                       return (
                         <tr key={inv.id} style={{ borderBottom: '1px solid var(--border)' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-subtle)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = '')}
-                        >
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = '')}>
                           <td style={{ padding: '10px 14px' }}>
-                            <div style={{ fontWeight: 700, color: 'var(--text-900)' }}>{formatPhone(inv.user.phone)}</div>
-                            {inv.user.name && <div style={{ fontSize: '11.5px', color: 'var(--text-400)' }}>{inv.user.name}</div>}
+                            <div style={{ fontWeight: 700 }}>{formatPhone(inv.user.phone)}</div>
+                            {inv.user.name && <div style={{ fontSize: '12px', color: 'var(--text-400)' }}>{inv.user.name}</div>}
                           </td>
                           <td style={{ padding: '10px 14px' }}>
                             <span style={{ fontWeight: 800, color, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+                              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, display: 'inline-block' }} />
                               {inv.planName}
                             </span>
                           </td>
@@ -733,24 +853,216 @@ export default function DouyinPage() {
                               {inv.status === 'completed' ? 'Terminé' : 'Actif'}
                             </span>
                           </td>
-                          <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: inv.daysLeft <= 3 ? 'var(--red-600)' : 'var(--text-700)' }}>
+                          {/* #13 — daysLeft calculé live depuis expiresAt */}
+                          <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: inv.status === 'completed' ? 'var(--text-400)' : inv.daysLeft <= 3 ? 'var(--red-600)' : 'var(--text-700)' }}>
                             {inv.status === 'completed' ? '—' : `${inv.daysLeft}j`}
                           </td>
                           <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{formatDate(inv.expiresAt)}</td>
                           <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{formatDate(inv.createdAt)}</td>
+                          <td style={{ padding: '10px 14px', minWidth: '210px' }}>
+                            {inv.status === 'active' && (
+                              invEditId === inv.id
+                                ? <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <select
+                                      className="form-input"
+                                      style={{ margin: 0, padding: '4px 8px', width: 'auto', fontSize: '13px' }}
+                                      value={invEditPlan}
+                                      onChange={e => setInvEditPlan(e.target.value)}
+                                    >
+                                      {['Starter', 'Argent', 'Or', 'Premium'].map(p => (
+                                        <option key={p} value={p}>{p}</option>
+                                      ))}
+                                    </select>
+                                    <button
+                                      className="btn btn-sm btn-green"
+                                      style={{ padding: '4px 10px', fontSize: '12px' }}
+                                      disabled={invLoading === inv.id}
+                                      onClick={() => changePlan(inv.id, invEditPlan)}
+                                    >
+                                      {invLoading === inv.id ? '…' : <><Save size={11} /> OK</>}
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline"
+                                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                                      onClick={() => setInvEditId(null)}
+                                    >
+                                      <XIcon size={11} />
+                                    </button>
+                                  </div>
+                                : <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button
+                                      className="btn btn-sm btn-outline"
+                                      style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--primary)', borderColor: 'var(--primary-light)' }}
+                                      onClick={() => { setInvEditId(inv.id); setInvEditPlan(inv.planName); }}
+                                      title="Changer le plan"
+                                    >
+                                      <Pencil size={11} /> Plan
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline"
+                                      style={{ padding: '4px 10px', fontSize: '12px', color: 'var(--green-600)', borderColor: 'var(--green-100)' }}
+                                      disabled={invLoading === inv.id}
+                                      onClick={() => completeInvestment(inv.id)}
+                                    >
+                                      {invLoading === inv.id ? '…' : <><Zap size={11} /> Compléter</>}
+                                    </button>
+                                  </div>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
-                    {filteredInvestments.length === 0 && (
-                      <tr>
-                        <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-400)' }}>
-                          Aucun investissement trouvé.
-                        </td>
-                      </tr>
+                    {investments.length === 0 && (
+                      <tr><td colSpan={10} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-400)' }}>Aucun investissement trouvé.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              <PaginationBar p={invPagination} onChange={p => { setInvPage(p); loadInvestments(p, invFilter, invPlanFilter, invSearch); }} />
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════
+              TAB PARRAINAGES
+          ═══════════════════════════════════════ */}
+          {tab === 'referrals' && (
+            <div>
+              {/* Stats globales */}
+              {refGlobalStats && (
+                <div className="stats-grid" style={{ marginBottom: '20px' }}>
+                  {[
+                    { label: 'Total parrainages', value: refGlobalStats.total, suffix: '', color: 'var(--text-900)' },
+                    { label: 'Commissions payées', value: refGlobalStats.paidCount, suffix: '', color: 'var(--green-600)' },
+                    { label: 'Total commissions', value: fmt(refGlobalStats.totalCommission), suffix: ' FCFA', color: 'var(--amber-600)' },
+                    { label: 'Taux de conversion', value: refGlobalStats.conversionRate, suffix: ' %', color: 'var(--primary)' },
+                  ].map(({ label, value, suffix, color }) => (
+                    <div key={label} className="stat-card">
+                      <div className="stat-label">{label}</div>
+                      <div className="stat-value" style={{ color }}>{value}{suffix}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div className="section-title" style={{ flex: 1 }}><GitBranch size={15} style={{ color: 'var(--amber-600)' }} /> Liste des parrainages</div>
+                  <div style={{ position: 'relative' }}>
+                    <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-400)' }} />
+                    <input className="form-input" style={{ paddingLeft: '30px', margin: 0, width: '180px' }} placeholder="Numéro…"
+                      value={refSearch} onChange={e => setRefSearch(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && loadReferrals(1, refFilter, refSearch)} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {(['all', 'pending', 'paid'] as const).map(f => (
+                      <button key={f} className={`btn btn-sm ${refFilter === f ? 'btn-green' : 'btn-outline'}`}
+                        onClick={() => { setRefFilter(f); loadReferrals(1, f, refSearch); }}>
+                        {f === 'all' ? 'Tous' : f === 'pending' ? 'En attente' : 'Payés'}
+                      </button>
+                    ))}
+                  </div>
+                  <button className="btn btn-sm btn-outline" onClick={exportReferrals}><Download size={12} /> CSV</button>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '750px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
+                        {['Parrain', 'Code', 'Filleul', 'Plan souscrit', 'Montant investi', 'Commission', 'Statut', 'Date'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {referrals.map(r => (
+                        <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ fontWeight: 700 }}>{formatPhone(r.referrer.phone)}</div>
+                            {r.referrer.name && <div style={{ fontSize: '12px', color: 'var(--text-400)' }}>{r.referrer.name}</div>}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '13px', color: 'var(--green-600)', fontWeight: 700 }}>{r.referrer.referralCode}</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-700)' }}>{formatPhone(r.referredPhone)}</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            {r.planName
+                              ? <span style={{ fontWeight: 700, color: planColors[r.planName] ?? 'var(--text-900)' }}>{r.planName}</span>
+                              : <span style={{ color: 'var(--text-400)', fontStyle: 'italic' }}>Pas encore</span>}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--amber-600)', whiteSpace: 'nowrap' }}>
+                            {r.amount ? `${fmt(r.amount)} FCFA` : '—'}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green-600)', whiteSpace: 'nowrap' }}>+{fmt(r.commission)} FCFA</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <span className={`badge ${r.status === 'paid' ? 'badge-paid' : 'badge-pending'}`}>
+                              {r.status === 'paid' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
+                              {r.status === 'paid' ? 'Payé' : 'En attente'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{formatDate(r.createdAt)}</td>
+                        </tr>
+                      ))}
+                      {referrals.length === 0 && (
+                        <tr><td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-400)' }}>Aucun parrainage trouvé.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <PaginationBar p={refPagination} onChange={p => { setRefPage(p); loadReferrals(p, refFilter, refSearch); }} />
+              </div>
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════
+              TAB JOURNAL D'AUDIT
+          ═══════════════════════════════════════ */}
+          {tab === 'logs' && (
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div className="section-title" style={{ flex: 1 }}><ScrollText size={15} /> Journal des actions admin</div>
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '700px' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
+                      {['Date', 'Admin', 'Action', 'Cible', 'Détails'].map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {logs.map(l => {
+                      const actionInfo = ACTION_LABELS[l.action] ?? { label: l.action, color: 'var(--text-500)' };
+                      return (
+                        <tr key={l.id} style={{ borderBottom: '1px solid var(--border)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-subtle)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                          <td style={{ padding: '10px 14px', color: 'var(--text-400)', whiteSpace: 'nowrap' }}>{formatDate(l.createdAt)}</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 700 }}>{formatPhone(l.admin.phone)}</td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <span className="badge" style={{ background: `${actionInfo.color}18`, color: actionInfo.color, fontWeight: 700 }}>
+                              {actionInfo.label}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', color: 'var(--text-700)' }}>
+                            {l.target ? formatPhone(l.target.phone) : l.targetId ? `#${l.targetId.slice(0, 8)}` : '—'}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-400)', maxWidth: '200px' }}>
+                            {l.meta
+                              ? Object.entries(l.meta).filter(([, v]) => v !== null).map(([k, v]) => `${k}: ${v}`).join(' · ')
+                              : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {logs.length === 0 && (
+                      <tr><td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-400)' }}>Aucune action enregistrée.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar p={logPagination} onChange={p => { setLogPage(p); loadLogs(p); }} />
             </div>
           )}
 

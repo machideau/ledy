@@ -56,6 +56,14 @@ export async function POST(request: Request) {
     );
   }
 
+  // Block suspended accounts
+  if (user.suspended) {
+    return NextResponse.json<ApiError>(
+      { error: "Votre compte a été suspendu. Contactez le support." },
+      { status: 403 }
+    );
+  }
+
   const token = await signToken(user.id);
 
   const response = NextResponse.json<AuthResponse>({

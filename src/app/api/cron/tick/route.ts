@@ -55,10 +55,16 @@ export async function GET(request: Request) {
     });
   }
 
+  // Purge expired revoked tokens (they're useless once the JWT itself is expired)
+  const { count: purgedTokens } = await prisma.revokedToken.deleteMany({
+    where: { expiresAt: { lte: now } },
+  });
+
   return NextResponse.json({
     processed: activeInvestments.length,
     completed: completed.length,
     decremented: running.length,
+    purgedTokens,
     timestamp: now.toISOString(),
   });
 }
