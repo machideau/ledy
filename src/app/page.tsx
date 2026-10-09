@@ -26,10 +26,9 @@ export default function LandingPage() {
       {/* ── NAV ── */}
       <nav style={{ padding: '0 32px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', background: '#fff', position: 'sticky', top: 0, zIndex: 50, boxShadow: 'var(--shadow-xs)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Image src="/logo.jpeg" alt="LEED" width={32} height={32} style={{ borderRadius: '8px' }} />
+          {/* <Image src="/logo.jpeg" alt="LEED" width={32} height={32} style={{ borderRadius: '8px' }} /> */}
           <span style={{ fontSize: '17px', fontWeight: 900, color: 'var(--primary)', letterSpacing: '-0.4px' }}>LEED</span>
           <div style={{ padding: '2px 8px', background: 'var(--primary-pale)', border: '1px solid var(--primary-light)', borderRadius: '20px', fontSize: '11px', fontWeight: 700, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <TogoFlag size={12} /> Togo
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -44,7 +43,7 @@ export default function LandingPage() {
       <section style={{ padding: '80px 20px 64px', textAlign: 'center', maxWidth: '680px', margin: '0 auto' }}>
 
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 14px', borderRadius: '30px', background: 'var(--primary-pale)', border: '1px solid var(--primary-light)', color: 'var(--primary)', fontSize: '12.5px', fontWeight: 700, marginBottom: '24px' }}>
-          <TogoFlag size={14} /> Plateforme #1 au Togo
+          Plateforme #1 au Togo
         </div>
 
         <h1 style={{ fontSize: 'clamp(30px, 5vw, 50px)', fontWeight: 900, lineHeight: 1.1, color: 'var(--text-900)', marginBottom: '18px', letterSpacing: '-1px' }}>
@@ -143,7 +142,6 @@ export default function LandingPage() {
         <span>LEED Togo © 2026</span>
         <span>Plateforme d&apos;investissement communautaire au Togo</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <TogoFlag size={14} />
           <span>Lomé, Togo</span>
         </div>
       </footer>
