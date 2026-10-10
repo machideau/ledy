@@ -9,7 +9,8 @@ export const phoneSchema = z
 
 export const passwordSchema = z
   .string()
-  .min(4, "Le mot de passe doit comporter au moins 4 caractères.");
+  .min(8, "Le mot de passe doit comporter au moins 8 caractères.")
+  .max(128, "Le mot de passe est trop long.");
 
 export const registerSchema = z.object({
   phone: phoneSchema,
@@ -37,6 +38,13 @@ export const withdrawSchema = z.object({
   phone: phoneSchema,
   amount: z.number().int().min(500, "Le montant minimum est 500 FCFA."),
 });
+
+// #5 — admin note field: bounded and sanitised
+export const adminNoteSchema = z
+  .string()
+  .max(500, "La note ne peut pas dépasser 500 caractères.")
+  .optional()
+  .nullable();
 
 export const updateProfileSchema = z.object({
   name: z.string().max(100).optional().nullable(),

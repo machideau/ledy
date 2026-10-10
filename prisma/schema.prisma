@@ -11,6 +11,37 @@ datasource db {
 }
 
 // ──────────────────────────────────────────────
+// Enums  (#11 — replace free-string status fields)
+// ──────────────────────────────────────────────
+
+enum UserRole {
+  user
+  douyin
+}
+
+enum InvestmentStatus {
+  active
+  completed
+}
+
+enum ReferralStatus {
+  pending
+  paid
+}
+
+enum WithdrawalStatus {
+  pending
+  paid
+  cancelled
+}
+
+enum PendingPaymentStatus {
+  pending
+  completed
+  failed
+}
+
+// ──────────────────────────────────────────────
 // User
 // ──────────────────────────────────────────────
 model User {
@@ -20,8 +51,12 @@ model User {
   name         String?                   // optional full name
   referralCode String   @unique          // LEED-XXXXXX
   referredBy   String?                  // referral code of sponsor
-  role         String   @default("user") // user | douyin
+  role         UserRole @default(user)   // user | douyin
   suspended    Boolean  @default(false)  // true = account blocked by admin
+  // Denormalised wallet balance (#9) — updated atomically inside transactions.
+  // Formula: sum(investment.remb) + sum(completed investment.gain)
+  //        + sum(paid referral.commission) - sum(paid|pending withdrawal.amount)
+  balance      Int      @default(0)
   createdAt    DateTime @default(now())
 
   investments  Investment[]
@@ -36,17 +71,17 @@ model User {
 // Investment — a plan subscription
 // ──────────────────────────────────────────────
 model Investment {
-  id         String   @id @default(cuid())
+  id         String          @id @default(cuid())
   userId     String
   planName   String                    // Starter | Argent | Or | Premium
   amount     Int                       // deposit
   remb       Int                       // 50 % immediate refund
   gain       Int                       // doubled amount at J+30
-  status     String   @default("active") // active | completed
+  status     InvestmentStatus @default(active)
   daysLeft   Int                       // approximate days remaining (for compat)
   expiresAt  DateTime                  // exact expiry timestamp (J+30 from creation)
   tchinToken String?                   // Tchin payment token (idempotence)
-  createdAt  DateTime @default(now())
+  createdAt  DateTime        @default(now())
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -58,14 +93,14 @@ model Investment {
 // PendingPayment — Tchin token waiting for webhook
 // ──────────────────────────────────────────────
 model PendingPayment {
-  id          String   @id @default(cuid())
-  tchinToken  String   @unique          // Tchin payment token
+  id          String               @id @default(cuid())
+  tchinToken  String               @unique          // Tchin payment token
   userId      String
-  planId      String                    // starter | silver | gold | premium
-  payMethod   String                    // flooz | tmoney
-  phone       String                    // payment phone
-  status      String   @default("pending") // pending | completed | failed
-  createdAt   DateTime @default(now())
+  planId      String                                // starter | silver | gold | premium
+  payMethod   String                                // flooz | tmoney
+  phone       String                                // payment phone
+  status      PendingPaymentStatus @default(pending)
+  createdAt   DateTime             @default(now())
 
   @@index([userId])
 }
@@ -74,14 +109,14 @@ model PendingPayment {
 // Referral — someone signed up via the user's link
 // ──────────────────────────────────────────────
 model Referral {
-  id           String   @id @default(cuid())
-  referrerId   String
-  referredPhone String                  // phone of the referred person
-  planName     String?                  // plan they subscribed to (null = not yet)
-  amount       Int?                     // amount invested (null = not yet)
-  commission   Int     @default(500)   // fixed 500 FCFA
-  status       String  @default("pending") // pending | paid
-  createdAt    DateTime @default(now())
+  id            String         @id @default(cuid())
+  referrerId    String
+  referredPhone String                             // phone of the referred person
+  planName      String?                            // plan they subscribed to (null = not yet)
+  amount        Int?                               // amount invested (null = not yet)
+  commission    Int            @default(500)       // fixed 500 FCFA
+  status        ReferralStatus @default(pending)
+  createdAt     DateTime       @default(now())
 
   referrer     User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
 
@@ -92,16 +127,16 @@ model Referral {
 // Withdrawal — money taken out of the wallet
 // ──────────────────────────────────────────────
 model Withdrawal {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   userId    String
   amount    Int
-  method    String                    // flooz | tmoney
-  phone     String                    // withdrawal phone number
-  status    String  @default("pending") // pending | paid | cancelled
-  type      String                    // Remboursement 50% | Commission parrainage | Retrait manuel
-  ref       String                    // human-readable ref, e.g. WD-005
-  note      String?                   // optional admin note (reason for cancellation, etc.)
-  createdAt DateTime @default(now())
+  method    String                                // flooz | tmoney
+  phone     String                                // withdrawal phone number
+  status    WithdrawalStatus @default(pending)
+  type      String                                // Remboursement 50% | Commission parrainage | Retrait manuel
+  ref       String                                // human-readable ref, e.g. WD-005
+  note      String?                               // optional admin note (max 500 chars)
+  createdAt DateTime         @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -3,9 +3,24 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, signToken, tokenMaxAge, COOKIE_NAME } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
 import { generateReferralCode } from "@/lib/plans";
+import { isRateLimited } from "@/lib/rateLimit";
 import type { AuthResponse, ApiError } from "@/lib/types";
 
+// Allow 5 registration attempts per IP per 15 minutes.
+const REGISTER_MAX = 5;
+const REGISTER_WINDOW_MS = 15 * 60 * 1000;
+
 export async function POST(request: Request) {
+  // Rate-limit by IP before doing any DB work
+  const ip = request.headers.get("x-forwarded-for") ?? "unknown";
+  const rateLimitKey = "register:ip:" + ip;
+  if (isRateLimited(rateLimitKey, REGISTER_MAX, REGISTER_WINDOW_MS)) {
+    return NextResponse.json<ApiError>(
+      { error: "Trop de tentatives. Réessayez dans 15 minutes." },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json();
   const parsed = registerSchema.safeParse(body);
 
@@ -16,11 +31,11 @@ export async function POST(request: Request) {
 
   const { phone, password, referralCode } = parsed.data;
 
-  // Check if phone already registered
+  // Check if phone already registered — use a generic message to avoid enumeration (#3)
   const existing = await prisma.user.findUnique({ where: { phone } });
   if (existing) {
     return NextResponse.json<ApiError>(
-      { error: "Ce numéro est déjà inscrit." },
+      { error: "Inscription impossible. Vérifiez vos informations ou contactez le support." },
       { status: 409 }
     );
   }

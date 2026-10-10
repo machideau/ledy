@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireDouyin } from "@/lib/douyin";
 import { logAdminAction } from "@/lib/adminLog";
+import { $Enums } from "@/generated/prisma/client";
 import type { ApiError } from "@/lib/types";
 
 // GET /api/douyin/users?page=1&limit=50&search=xxx
@@ -100,6 +101,7 @@ export async function PATCH(request: NextRequest) {
   if (role !== undefined && !["user", "douyin"].includes(role)) {
     return NextResponse.json<ApiError>({ error: "Rôle invalide (user | douyin)." }, { status: 400 });
   }
+  const typedRole = role as $Enums.UserRole | undefined;
 
   // Cannot suspend/edit a douyin admin
   const target = await prisma.user.findUnique({ where: { id }, select: { role: true, phone: true } });
@@ -118,10 +120,10 @@ export async function PATCH(request: NextRequest) {
   const updated = await prisma.user.update({
     where: { id },
     data: {
-      ...(name      !== undefined ? { name: name || null } : {}),
-      ...(phone                   ? { phone }               : {}),
-      ...(role      !== undefined ? { role }                : {}),
-      ...(suspended !== undefined ? { suspended }           : {}),
+      ...(name         !== undefined ? { name: name || null }    : {}),
+      ...(phone                      ? { phone }                 : {}),
+      ...(typedRole    !== undefined ? { role: typedRole }       : {}),
+      ...(suspended    !== undefined ? { suspended }             : {}),
     },
     select: { id: true, phone: true, name: true, role: true, suspended: true, referralCode: true },
   });

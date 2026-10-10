@@ -5,16 +5,19 @@ import { maskPhone, REFERRAL_COMMISSION } from "@/lib/plans";
 import type { DashboardData, ApiError } from "@/lib/types";
 
 // GET /api/dashboard — aggregated data for the dashboard page
+// #8  — walletBalance now subtracts pending + paid withdrawals so the displayed
+//        balance matches exactly what the user can still withdraw.
+// #9  — still derives balance on-the-fly from source records for correctness,
+//        but also syncs the denormalised User.balance field for future reads.
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json<ApiError>({ error: "Non authentifié." }, { status: 401 });
   }
 
-  // Build referral link from the actual request origin so it works on any domain.
   const origin = request.nextUrl.origin;
 
-  const [investments, referrals] = await Promise.all([
+  const [investments, referrals, withdrawals] = await Promise.all([
     prisma.investment.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -23,11 +26,15 @@ export async function GET(request: NextRequest) {
       where: { referrerId: user.id },
       orderBy: { createdAt: "desc" },
     }),
+    // #8 — also fetch withdrawals to subtract from balance
+    prisma.withdrawal.findMany({
+      where: { userId: user.id, status: { in: ["pending", "paid"] } },
+      select: { amount: true },
+    }),
   ]);
 
   const totalInvested = investments.reduce((s, i) => s + i.amount, 0);
   const totalRemb = investments.reduce((s, i) => s + i.remb, 0);
-  // Gains J+30 des investissements terminés (disponibles pour retrait)
   const completedGains = investments
     .filter((i) => i.status === "completed")
     .reduce((s, i) => s + i.gain, 0);
@@ -35,12 +42,16 @@ export async function GET(request: NextRequest) {
     .filter((r) => r.status === "paid")
     .reduce((s, r) => s + r.commission, 0);
   const pendingReferrals = referrals.filter((r) => r.status === "pending").length;
-  // Wallet = remboursements immédiats + gains J+30 débloqués + commissions parrainage
-  // Note: the balance is always derived from source records rather than stored in a
-  // dedicated column. This is intentionally safe (no balance drift) but re-scans all
-  // rows on every request. At scale, consider a denormalised balance on User updated
-  // atomically inside Prisma transactions.
-  const walletBalance = totalRemb + completedGains + referralEarnings;
+
+  // #8 — subtract already-requested withdrawals so the displayed balance is accurate
+  const withdrawnAmount = withdrawals.reduce((s, w) => s + w.amount, 0);
+  const walletBalance = totalRemb + completedGains + referralEarnings - withdrawnAmount;
+
+  // #9 — keep denormalised balance in sync (fire-and-forget, non-blocking)
+  prisma.user.update({
+    where: { id: user.id },
+    data:  { balance: Math.max(0, walletBalance) },
+  }).catch(() => { /* non-critical */ });
 
   return NextResponse.json<DashboardData>({
     user: {
@@ -74,5 +85,6 @@ export async function GET(request: NextRequest) {
       createdAt: ref.createdAt.toISOString(),
     })),
     referralLink: `${origin}/auth?ref=${user.referralCode}`,
+    REFERRAL_COMMISSION,
   });
 }

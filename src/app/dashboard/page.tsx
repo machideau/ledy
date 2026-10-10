@@ -156,45 +156,33 @@ function DashboardContent() {
 
           {/* ── Banner succès paiement ── */}
           {paymentState === 'pending' && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              background: 'var(--amber-50)', border: '1px solid var(--amber-100)',
-              borderRadius: 'var(--r-md)', padding: '14px 18px', marginBottom: '20px',
-            }}>
+            <div className="alert-amber">
               <Clock size={22} style={{ color: 'var(--amber-600)', flexShrink: 0, animation: 'spin 1.5s linear infinite' }} />
               <div>
-                <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--amber-600)' }}>Confirmation en cours…</div>
-                <div style={{ fontSize: '12.5px', color: 'var(--text-500)', marginTop: '2px' }}>
+                <div className="font-black text-base text-amber">Confirmation en cours…</div>
+                <div className="text-sm text-secondary mt-3">
                   On attend la confirmation de Tchin. Votre investissement sera activé dans quelques secondes.
                 </div>
               </div>
             </div>
           )}
           {paymentState === 'confirmed' && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              background: 'var(--green-50)', border: '1px solid var(--green-100)',
-              borderRadius: 'var(--r-md)', padding: '14px 18px', marginBottom: '20px',
-            }}>
+            <div className="alert-green">
               <CheckCircle2 size={22} style={{ color: 'var(--green-600)', flexShrink: 0 }} />
               <div>
-                <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--green-600)' }}>Paiement confirmé !</div>
-                <div style={{ fontSize: '12.5px', color: 'var(--text-500)', marginTop: '2px' }}>
+                <div className="font-black text-base text-green">Paiement confirmé !</div>
+                <div className="text-sm text-secondary mt-3">
                   Votre investissement est maintenant actif. Bonne chance !
                 </div>
               </div>
             </div>
           )}
           {paymentState === 'failed' && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              background: 'var(--red-50)', border: '1px solid var(--red-100)',
-              borderRadius: 'var(--r-md)', padding: '14px 18px', marginBottom: '20px',
-            }}>
+            <div className="alert-red">
               <CheckCircle2 size={22} style={{ color: 'var(--red-600)', flexShrink: 0 }} />
               <div>
-                <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--red-600)' }}>Paiement non confirmé</div>
-                <div style={{ fontSize: '12.5px', color: 'var(--text-500)', marginTop: '2px' }}>
+                <div className="font-black text-base text-red">Paiement non confirmé</div>
+                <div className="text-sm text-secondary mt-3">
                   Aucune confirmation reçue de Tchin. Si vous avez payé, contactez le support.
                 </div>
               </div>
@@ -425,28 +413,18 @@ function DashboardContent() {
                 { step: '02', icon: Zap,        color: 'var(--amber-600)', bg: 'var(--amber-50)',  border: 'var(--amber-100)', title: '50 % remboursé',   desc: 'La moitié de votre dépôt est reversée immédiatement.',  detail: 'Dans les 24 h'     },
                 { step: '03', icon: TrendingUp, color: 'var(--red-600)',   bg: 'var(--red-50)',    border: 'var(--red-100)',   title: 'Mise x2 en 1 mois', desc: 'Votre dépôt initial vous est rendu en double.',          detail: 'J+30 garanti'      },
               ].map(({ step, icon: Icon, color, bg, border, title, desc, detail }) => (
-                <div key={step} style={{
-                  background: bg, border: `1px solid ${border}`,
-                  borderRadius: 'var(--r-md)', padding: '18px',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <div style={{
-                      width: '38px', height: '38px', borderRadius: '10px',
-                      background: '#fff', border: `1px solid ${border}`,
-                      color, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
+                <div key={step} className="step-card" style={{ background: bg, border: `1px solid ${border}` }}>
+                  <div className="flex items-center gap-5 mb-6">
+                    <div className="step-icon-box" style={{ border: `1px solid ${border}`, color }}>
                       <Icon size={18} />
                     </div>
                     <div>
-                      <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color, opacity: 0.7 }}>
-                        Étape {step}
-                      </div>
-                      <div style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text-900)' }}>{title}</div>
+                      <div className="step-number" style={{ color }}> Étape {step}</div>
+                      <div className="step-title">{title}</div>
                     </div>
                   </div>
-                  <p style={{ fontSize: '12.5px', color: 'var(--text-500)', lineHeight: 1.6, marginBottom: '8px' }}>{desc}</p>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color, background: '#fff', padding: '3px 9px', borderRadius: '20px', border: `1px solid ${border}` }}>
+                  <p className="step-desc">{desc}</p>
+                  <span className="step-badge" style={{ color, border: `1px solid ${border}` }}>
                     {detail}
                   </span>
                 </div>

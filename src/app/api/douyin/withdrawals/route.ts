@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireDouyin } from "@/lib/douyin";
 import { logAdminAction } from "@/lib/adminLog";
+import { adminNoteSchema } from "@/lib/validation";
+import { $Enums } from "@/generated/prisma/client";
 import type { ApiError } from "@/lib/types";
 
 // GET /api/douyin/withdrawals?status=all|pending|paid|cancelled&sort=date|amount&dir=asc|desc&page=1&limit=50&search=xxx
@@ -20,7 +22,9 @@ export async function GET(request: NextRequest) {
   const limit  = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10)));
   const search = searchParams.get("search")?.trim() ?? "";
 
-  const statusWhere = status !== "all" ? { status } : {};
+  const statusWhere = status !== "all"
+    ? { status: status as $Enums.WithdrawalStatus }
+    : {};
   const searchWhere = search
     ? {
         OR: [
@@ -84,28 +88,53 @@ export async function PATCH(request: NextRequest) {
       { status: 400 }
     );
   }
+  const typedStatus = status as $Enums.WithdrawalStatus;
 
-  const wd = await prisma.withdrawal.findUnique({ where: { id }, select: { status: true, amount: true, user: { select: { phone: true } } } });
+  // #5 — validate note length
+  const noteParsed = adminNoteSchema.safeParse(note);
+  if (!noteParsed.success) {
+    return NextResponse.json<ApiError>(
+      { error: noteParsed.error.issues[0]?.message || "Note invalide." },
+      { status: 400 }
+    );
+  }
+  const validatedNote = noteParsed.data;
+
+  const wd = await prisma.withdrawal.findUnique({
+    where: { id },
+    select: { status: true, amount: true, userId: true },
+  });
   if (!wd) return NextResponse.json<ApiError>({ error: "Retrait introuvable." }, { status: 404 });
   if (wd.status !== "pending") {
     return NextResponse.json<ApiError>({ error: "Ce retrait a déjà été traité." }, { status: 409 });
   }
 
+  // fetch user phone separately for the audit log
+  const wdUser = await prisma.user.findUnique({ where: { id: wd.userId }, select: { phone: true } });
+
   const updated = await prisma.withdrawal.update({
     where: { id },
     data: {
-      status,
-      ...(note !== undefined ? { note: note || null } : {}),
+      status: typedStatus,
+      ...(validatedNote !== undefined ? { note: validatedNote || null } : {}),
     },
   });
 
-  const action = status === "paid" ? "withdrawal.paid" : "withdrawal.cancelled";
+  // #9 — when a withdrawal is paid, decrement the user's denormalised balance
+  if (typedStatus === "paid") {
+    await prisma.user.update({
+      where: { id: wd.userId },
+      data:  { balance: { decrement: wd.amount } },
+    }).catch(() => { /* non-critical — dashboard re-derives balance on read */ });
+  }
+
+  const action = typedStatus === "paid" ? "withdrawal.paid" : "withdrawal.cancelled";
   await logAdminAction({
     adminId: admin.id,
     action,
     targetId: id,
     targetType: "withdrawal",
-    meta: { amount: wd.amount, userPhone: wd.user.phone, note: note ?? null },
+    meta: { amount: wd.amount, userPhone: wdUser?.phone ?? "unknown", note: validatedNote ?? null },
   });
 
   return NextResponse.json({ id: updated.id, status: updated.status, note: updated.note });

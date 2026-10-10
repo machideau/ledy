@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    // Run atomically: update pending + create investment + credit referral
+    // Run atomically: update pending + create investment + credit referral + update balance
     await prisma.$transaction(async (tx) => {
       // Mark pending as completed
       await tx.pendingPayment.update({
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
       // Create the investment
       const now = new Date();
-      await tx.investment.create({
+      const investment = await tx.investment.create({
         data: {
           userId: pending.userId,
           planName: plan.name,
@@ -88,6 +88,12 @@ export async function POST(request: Request) {
           expiresAt: addDays(now, INVESTMENT_DURATION_DAYS),
           tchinToken: pendingToken,
         },
+      });
+
+      // #9 — credit the 50% immediate refund to the denormalised balance
+      await tx.user.update({
+        where: { id: pending.userId },
+        data:  { balance: { increment: investment.remb } },
       });
 
       // Check if user was referred — pay sponsor's commission
@@ -119,6 +125,12 @@ export async function POST(request: Request) {
                 amount: plan.amount,
                 status: "paid",
               },
+            });
+
+            // #9 — credit commission to sponsor's denormalised balance
+            await tx.user.update({
+              where: { id: sponsor.id },
+              data:  { balance: { increment: referral.commission } },
             });
           }
         }

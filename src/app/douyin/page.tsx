@@ -10,60 +10,17 @@ import {
 } from 'lucide-react';
 import { ApiClientError } from '@/lib/api';
 import { fmt, formatDate, formatPhone } from '@/lib/format';
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface DouyinStats {
-  period: string;
-  userCount: number;
-  investmentCount: number;
-  activeInvestments: number;
-  completedInvestments: number;
-  withdrawalCount: number;
-  pendingWithdrawalCount: number;
-  totalInvested: number;
-  totalGainsPaid: number;
-  totalWithdrawn: number;
-  pendingWithdrawalAmount: number;
-  totalCommissions: number;
-  planBreakdown: { planName: string; count: number; totalInvested: number; totalGain: number }[];
-}
-
-interface DouyinUser {
-  id: string; phone: string; name: string | null; role: string;
-  suspended: boolean; referralCode: string; referredBy: string | null;
-  createdAt: string; investmentCount: number; activeInvestments: number;
-  totalInvested: number; totalRemb: number; totalGains: number;
-  totalCommissions: number; totalWithdrawn: number; walletBalance: number;
-}
-
-interface DouyinWithdrawal {
-  id: string; amount: number; method: string; phone: string;
-  status: string; type: string; ref: string; note: string | null;
-  createdAt: string; user: { phone: string; name: string | null };
-}
-
-interface DouyinInvestment {
-  id: string; planName: string; amount: number; remb: number; gain: number;
-  status: string; daysLeft: number; expiresAt: string; createdAt: string;
-  user: { phone: string; name: string | null };
-}
-
-interface DouyinReferral {
-  id: string; referredPhone: string; planName: string | null;
-  amount: number | null; commission: number; status: string; createdAt: string;
-  referrer: { phone: string; name: string | null; referralCode: string };
-}
-
-interface AdminLog {
-  id: string; action: string; targetId: string | null; targetType: string | null;
-  meta: Record<string, unknown> | null; createdAt: string;
-  admin: { phone: string; name: string | null };
-  target: { phone: string; name: string | null } | null;
-}
-
-interface Pagination { page: number; limit: number; total: number; pages: number }
-interface ReferralGlobalStats { total: number; paidCount: number; totalCommission: number; conversionRate: number }
+// #13 — import shared types instead of re-declaring them locally
+import type {
+  AdminStats as DouyinStats,
+  AdminUser as DouyinUser,
+  AdminWithdrawal as DouyinWithdrawal,
+  AdminInvestment as DouyinInvestment,
+  AdminReferral as DouyinReferral,
+  AdminLog,
+  AdminPagination as Pagination,
+  ReferralGlobalStats,
+} from '@/lib/types';
 
 type Tab = 'stats' | 'users' | 'withdrawals' | 'investments' | 'referrals' | 'logs';
 type SortDir = 'asc' | 'desc';
@@ -238,11 +195,39 @@ export default function DouyinPage() {
 
   // ── Initial load ──
 
+  // ── Initial load (#10) — only load stats + pending withdrawals on mount;
+  //    other tabs load lazily when first selected ──────────────────────────
+  const [loadedTabs, setLoadedTabs] = useState<Set<Tab>>(new Set());
+
+  // Lazy loader: call when switching to a tab for the first time
+  const ensureTabLoaded = useCallback(async (t: Tab) => {
+    if (loadedTabs.has(t)) return;
+    setLoadedTabs(prev => new Set(prev).add(t));
+    try {
+      if (t === 'stats')       await loadStats();
+      if (t === 'users')       await loadUsers();
+      if (t === 'withdrawals') await loadWithdrawals();
+      if (t === 'investments') await loadInvestments();
+      if (t === 'referrals')   await loadReferrals();
+      if (t === 'logs')        await loadLogs();
+    } catch (e) {
+      setLoadedTabs(prev => { const s = new Set(prev); s.delete(t); return s; });
+      if (e instanceof ApiClientError) setError(e.message);
+    }
+  }, [loadedTabs, loadStats, loadUsers, loadWithdrawals, loadInvestments, loadReferrals, loadLogs]);
+
+  const handleTabChange = (t: Tab) => {
+    setTab(t);
+    ensureTabLoaded(t);
+  };
+
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        await Promise.all([loadStats(), loadUsers(), loadWithdrawals(), loadInvestments(), loadReferrals(), loadLogs()]);
+        // Only load the default tab (stats) and pending withdrawals count on mount
+        await Promise.all([loadStats(), loadWithdrawals()]);
+        setLoadedTabs(new Set(['stats', 'withdrawals'] as Tab[]));
       } catch (e) {
         if (e instanceof ApiClientError) {
           if (e.status === 403) { router.replace('/dashboard'); return; }
@@ -409,25 +394,25 @@ export default function DouyinPage() {
               <h1 className="page-title"><ShieldCheck size={24} style={{ color: 'var(--primary)' }} /> Panel Administration</h1>
               <p className="page-subtitle">Vue d&apos;ensemble et gestion de la plateforme LEED Togo.</p>
             </div>
-            <button className="btn btn-outline btn-sm" onClick={() => Promise.all([loadStats(), loadUsers(), loadWithdrawals(), loadInvestments(), loadReferrals(), loadLogs()])}>
+            <button className="btn btn-outline btn-sm" onClick={() => Promise.all([loadStats(), loadWithdrawals(), ...(loadedTabs.has('users') ? [loadUsers()] : []), ...(loadedTabs.has('investments') ? [loadInvestments()] : []), ...(loadedTabs.has('referrals') ? [loadReferrals()] : []), ...(loadedTabs.has('logs') ? [loadLogs()] : [])])}>
               <RefreshCw size={13} /> Actualiser
             </button>
           </div>
 
           {/* Alerte retraits */}
           {(stats?.pendingWithdrawalCount ?? 0) > 0 && (
-            <div onClick={() => { setTab('withdrawals'); setWdFilter('pending'); }}
-              style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', background: 'var(--amber-50)', border: '1px solid var(--amber-100)', borderRadius: 'var(--r-md)', padding: '12px 18px', marginBottom: '20px' }}>
+            <div className="alert-amber" onClick={() => { setTab('withdrawals'); setWdFilter('pending'); }}
+              style={{ cursor: 'pointer' }}>
               <Clock size={18} style={{ color: 'var(--amber-600)', flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--amber-600)' }}>
+              <div className="flex-1">
+                <span className="font-black text-base text-amber">
                   {stats!.pendingWithdrawalCount} retrait{stats!.pendingWithdrawalCount > 1 ? 's' : ''} en attente
                 </span>
-                <span style={{ fontSize: '13px', color: 'var(--text-500)', marginLeft: '8px' }}>
+                <span className="text-sm text-secondary" style={{ marginLeft: '8px' }}>
                   · {fmt(stats!.pendingWithdrawalAmount)} FCFA
                 </span>
               </div>
-              <span style={{ fontSize: '13px', color: 'var(--amber-600)', fontWeight: 700 }}>Voir →</span>
+              <span className="text-sm text-amber font-bold">Voir →</span>
             </div>
           )}
 
@@ -441,7 +426,7 @@ export default function DouyinPage() {
               { id: 'referrals',   label: `Parrainages (${refGlobalStats?.total ?? 0})`, icon: GitBranch },
               { id: 'logs',        label: 'Journal',                           icon: ScrollText      },
             ] as { id: Tab; label: string; icon: React.ComponentType<{ size?: number }> }[]).map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setTab(id)}
+              <button key={id} onClick={() => handleTabChange(id)}
                 className={`nav-item${tab === id ? ' active' : ''}`}
                 style={{ cursor: 'pointer', border: 'none', background: tab === id ? undefined : 'var(--bg-card)', borderRadius: 'var(--r-sm)', flex: 1 }}>
                 <Icon size={14} /> {label}
