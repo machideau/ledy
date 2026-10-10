@@ -127,6 +127,8 @@ model Referral {
 
   referrer     User     @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
 
+  // Prevent double commission: one referral record per (sponsor, referred phone) pair.
+  @@unique([referrerId, referredPhone])
   @@index([referrerId])
 }
 

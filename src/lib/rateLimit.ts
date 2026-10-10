@@ -1,19 +1,52 @@
 /**
- * In-memory rate limiter.
+ * Rate limiter backed by a KV store (Redis-compatible).
  *
- * Works for single-process deployments (Vercel serverless functions share
- * nothing between instances, so this limits bursts within one lambda warm
- * instance — good enough to deter scripted brute-force against a specific
- * target hitting the same instance repeatedly).
+ * Uses the native `fetch`-based Upstash REST API so it works in both
+ * Node.js and Edge runtimes without extra npm packages.
  *
- * For stronger protection across all instances, replace the Map with an
- * atomic counter in Redis / Upstash:
- *   https://upstash.com/docs/redis/sdks/ratelimit-ts/overview
+ * Required environment variables:
+ *   UPSTASH_REDIS_REST_URL   — e.g. https://xxxx.upstash.io
+ *   UPSTASH_REDIS_REST_TOKEN — Upstash REST token
  *
- * Drop-in replacement: swap isRateLimited() for one that calls Upstash's
- * ratelimit.limit(key) and checks the `success` boolean — no other changes
- * needed in the callers.
+ * Falls back to an in-memory store when those variables are absent
+ * (local dev, CI). The fallback is NOT safe for multi-process/serverless
+ * production — configure Upstash before deploying.
+ *
+ * Algorithm: sliding-window via Redis INCR + EXPIRE.
  */
+
+// ── Upstash helper ────────────────────────────────────────────────────────────
+
+async function redisIncr(key: string, windowMs: number): Promise<number | null> {
+  const url   = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null; // fallback to in-memory
+
+  const windowSec = Math.ceil(windowMs / 1000);
+
+  try {
+    // Pipeline: INCR key + EXPIRE key windowSec (only sets TTL if key is new)
+    const res = await fetch(`${url}/pipeline`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify([
+        ["INCR", key],
+        ["EXPIRE", key, windowSec, "NX"],
+      ]),
+    });
+
+    if (!res.ok) return null;
+    const data = (await res.json()) as [{ result: number }, unknown];
+    return data[0].result;
+  } catch {
+    return null; // network error — fail open (do not block requests)
+  }
+}
+
+// ── In-memory fallback (dev / CI only) ───────────────────────────────────────
 
 interface RateLimitEntry {
   count: number;
@@ -22,8 +55,7 @@ interface RateLimitEntry {
 
 const store = new Map<string, RateLimitEntry>();
 
-/** Returns true if the request should be blocked. */
-export function isRateLimited(
+function inMemoryIsRateLimited(
   key: string,
   maxRequests: number,
   windowMs: number
@@ -37,7 +69,23 @@ export function isRateLimited(
   }
 
   entry.count += 1;
-  if (entry.count > maxRequests) return true;
+  return entry.count > maxRequests;
+}
 
-  return false;
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/** Returns true if the request should be blocked. */
+export async function isRateLimited(
+  key: string,
+  maxRequests: number,
+  windowMs: number
+): Promise<boolean> {
+  const count = await redisIncr(key, windowMs);
+
+  if (count === null) {
+    // Upstash not configured — use in-memory fallback
+    return inMemoryIsRateLimited(key, maxRequests, windowMs);
+  }
+
+  return count > maxRequests;
 }

@@ -11,10 +11,13 @@ const REGISTER_MAX = 5;
 const REGISTER_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request: Request) {
-  // Rate-limit by IP before doing any DB work
-  const ip = request.headers.get("x-forwarded-for") ?? "unknown";
+  // Rate-limit by IP before doing any DB work.
+  // Use only the first value of x-forwarded-for (leftmost = client IP on Vercel)
+  // to prevent spoofing via a crafted header with multiple addresses.
+  const rawIp = request.headers.get("x-forwarded-for") ?? "unknown";
+  const ip = rawIp.split(",")[0].trim();
   const rateLimitKey = "register:ip:" + ip;
-  if (isRateLimited(rateLimitKey, REGISTER_MAX, REGISTER_WINDOW_MS)) {
+  if (await isRateLimited(rateLimitKey, REGISTER_MAX, REGISTER_WINDOW_MS)) {
     return NextResponse.json<ApiError>(
       { error: "Trop de tentatives. Réessayez dans 15 minutes." },
       { status: 429 }

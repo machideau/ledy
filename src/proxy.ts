@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { verifyTokenEdge, COOKIE_NAME } from "@/lib/auth";
 
 // Routes that require authentication.
-const PROTECTED_ROUTES = ["/dashboard", "/invest", "/referral", "/withdraw", "/settings"];
+const PROTECTED_ROUTES = ["/dashboard", "/invest", "/referral", "/withdraw", "/settings", "/douyin"];
 
 // Routes accessible only when logged out (redirect to dashboard if session exists).
 const AUTH_ROUTES = ["/auth"];

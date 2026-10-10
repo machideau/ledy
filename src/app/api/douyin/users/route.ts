@@ -157,6 +157,22 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json<ApiError>({ error: "Impossible de supprimer un compte admin." }, { status: 403 });
   }
 
+  // Block deletion if the user has active investments or pending withdrawals
+  // to prevent an admin from erasing financial obligations.
+  const [activeInvestments, pendingWithdrawals] = await Promise.all([
+    prisma.investment.count({ where: { userId: id, status: "active" } }),
+    prisma.withdrawal.count({ where: { userId: id, status: "pending" } }),
+  ]);
+  if (activeInvestments > 0 || pendingWithdrawals > 0) {
+    return NextResponse.json<ApiError>(
+      {
+        error:
+          "Impossible de supprimer ce compte : il possède des investissements actifs ou des retraits en attente.",
+      },
+      { status: 409 }
+    );
+  }
+
   await prisma.user.delete({ where: { id } });
   await logAdminAction({ adminId: admin.id, action: "user.delete", targetId: id, targetType: "user", meta: { phone: user.phone } });
 

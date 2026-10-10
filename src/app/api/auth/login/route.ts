@@ -11,8 +11,11 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request: Request) {
   // Peek at the phone before full validation so we can rate-limit early.
-  // We use the raw IP as fallback when the body can't be parsed yet.
-  let rateLimitKey = "ip:" + (request.headers.get("x-forwarded-for") ?? "unknown");
+  // Use only the first value of x-forwarded-for (leftmost = client IP on Vercel)
+  // to prevent spoofing via a crafted header with multiple addresses.
+  const rawIp = request.headers.get("x-forwarded-for") ?? "unknown";
+  const ip = rawIp.split(",")[0].trim();
+  let rateLimitKey = "ip:" + ip;
 
   let body: unknown;
   try {
@@ -24,7 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json<ApiError>({ error: "Données invalides." }, { status: 400 });
   }
 
-  if (isRateLimited(rateLimitKey, LOGIN_MAX, LOGIN_WINDOW_MS)) {
+  if (await isRateLimited(rateLimitKey, LOGIN_MAX, LOGIN_WINDOW_MS)) {
     return NextResponse.json<ApiError>(
       { error: "Trop de tentatives. Réessayez dans 15 minutes." },
       { status: 429 }

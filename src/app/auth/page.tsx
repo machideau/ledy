@@ -43,8 +43,14 @@ function AuthContent() {
       } else {
         await api.login({ phone, password });
       }
+      // Validate redirect to prevent open redirect attacks.
+      // Only allow internal paths (must start with "/" and not be a protocol-relative URL "//…").
       const redirect = searchParams.get('redirect');
-      router.push(redirect || '/dashboard');
+      const safeRedirect =
+        redirect && redirect.startsWith('/') && !redirect.startsWith('//')
+          ? redirect
+          : '/dashboard';
+      router.push(safeRedirect);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : 'Une erreur est survenue. Réessayez.');
       setLoading(false);

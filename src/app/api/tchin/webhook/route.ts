@@ -66,6 +66,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
+    // Verify the amount Tchin actually received matches the plan amount.
+    // payload.amount is a string (FCFA); reject if it doesn't match to prevent
+    // an attacker from activating a premium plan with a lower payment.
+    const paidAmount = parseInt(payload.amount, 10);
+    if (isNaN(paidAmount) || paidAmount !== plan.amount) {
+      console.error("[tchin/webhook] Amount mismatch — expected", plan.amount, "got", payload.amount, "for token", pendingToken);
+      await prisma.pendingPayment.update({
+        where: { tchinToken: pendingToken },
+        data: { status: "failed" },
+      });
+      return NextResponse.json({ received: true });
+    }
+
     // Run atomically: update pending + create investment + credit referral + update balance
     await prisma.$transaction(async (tx) => {
       // Mark pending as completed
@@ -109,15 +122,20 @@ export async function POST(request: Request) {
         });
 
         if (sponsor) {
-          const referral = await tx.referral.findFirst({
+          // Use the unique constraint (referrerId, referredPhone) for the lookup
+          // instead of findFirst({ status: "pending" }) to prevent a race condition
+          // where two concurrent webhooks both read "pending" before either writes "paid",
+          // which would result in the commission being credited twice.
+          const referral = await tx.referral.findUnique({
             where: {
-              referrerId: sponsor.id,
-              referredPhone: user.phone,
-              status: "pending",
+              referrerId_referredPhone: {
+                referrerId:    sponsor.id,
+                referredPhone: user.phone,
+              },
             },
           });
 
-          if (referral) {
+          if (referral && referral.status === "pending") {
             await tx.referral.update({
               where: { id: referral.id },
               data: {

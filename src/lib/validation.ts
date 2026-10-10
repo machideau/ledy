@@ -36,7 +36,11 @@ export const investSchema = z.object({
 export const withdrawSchema = z.object({
   method: z.enum(["flooz", "tmoney"]),
   phone: phoneSchema,
-  amount: z.number().int().min(500, "Le montant minimum est 500 FCFA."),
+  amount: z
+    .number()
+    .int()
+    .min(500, "Le montant minimum est 500 FCFA.")
+    .max(10_000_000, "Le montant dépasse la limite autorisée."),
 });
 
 // #5 — admin note field: bounded and sanitised

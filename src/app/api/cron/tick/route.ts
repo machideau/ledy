@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { TRANCHE_INTERVAL_DAYS } from "@/lib/plans";
 
@@ -17,8 +18,13 @@ import { TRANCHE_INTERVAL_DAYS } from "@/lib/plans";
 // expiresAt == createdAt + 30 days is still used as the authoritative
 // completion trigger (tranche 3).
 export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Use timing-safe comparison to prevent timing attacks on the secret
+  const provided = request.headers.get("authorization") ?? "";
+  const expected = `Bearer ${process.env.CRON_SECRET ?? ""}`;
+  const isValid =
+    provided.length === expected.length &&
+    timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  if (!isValid) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
