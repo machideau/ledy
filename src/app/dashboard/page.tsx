@@ -244,11 +244,22 @@ function DashboardContent() {
               </div>
 
               {data.investments.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-400)', fontSize: '13px' }}>
-                  Aucun investissement pour le moment.
-                  <div style={{ marginTop: '12px' }}>
-                    <Link href="/invest" className="btn btn-green btn-sm">Commencer à investir</Link>
+                <div className="empty-invest-cta">
+                  <div className="empty-invest-icon" aria-hidden="true">
+                    <TrendingUp size={28} />
                   </div>
+                  <p className="empty-invest-title">Votre premier investissement vous attend</p>
+                  <p className="empty-invest-desc">
+                    Déposez entre 2 000 et 30 000 FCFA. 50 % vous sont remboursés immédiatement, le reste doublé en 30 jours.
+                  </p>
+                  <div className="empty-invest-mini-stats" aria-label="Résumé des avantages">
+                    <div className="empty-invest-mini-stat">50 % remboursé <span>immédiatement</span></div>
+                    <div className="empty-invest-mini-stat">Mise <span>× 2</span> en 30 jours</div>
+                    <div className="empty-invest-mini-stat"><span>500 FCFA</span> / filleul</div>
+                  </div>
+                  <Link href="/invest" className="btn btn-green btn-sm">
+                    <TrendingUp size={14} aria-hidden="true" /> Choisir un plan
+                  </Link>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -411,7 +422,7 @@ function DashboardContent() {
               {[
                 { step: '01', icon: CreditCard, color: 'var(--green-600)', bg: 'var(--green-50)',  border: 'var(--green-100)', title: 'Vous déposez',     desc: 'Choisissez votre plan et payez via Flooz ou Mixx by Yas.', detail: '2 000 à 30 000 FCFA' },
                 { step: '02', icon: Zap,        color: 'var(--amber-600)', bg: 'var(--amber-50)',  border: 'var(--amber-100)', title: '50 % remboursé',   desc: 'La moitié de votre dépôt est reversée immédiatement.',  detail: 'Dans les 24 h'     },
-                { step: '03', icon: TrendingUp, color: 'var(--red-600)',   bg: 'var(--red-50)',    border: 'var(--red-100)',   title: 'Mise x2 en 1 mois', desc: 'Votre dépôt initial vous est rendu en double.',          detail: 'J+30 garanti'      },
+                { step: '03', icon: TrendingUp, color: 'var(--primary)',   bg: 'var(--primary-pale)',    border: 'var(--primary-light)',   title: 'Mise x2 en 1 mois', desc: 'Votre dépôt initial vous est rendu en double.',          detail: 'J+30 garanti'      },
               ].map(({ step, icon: Icon, color, bg, border, title, desc, detail }) => (
                 <div key={step} className="step-card" style={{ background: bg, border: `1px solid ${border}` }}>
                   <div className="flex items-center gap-5 mb-6">

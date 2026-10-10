@@ -22,7 +22,8 @@ const PLAN_STYLES: Record<string, { color: string; bg: string; border: string; t
   starter: { color: 'var(--green-600)',  bg: 'var(--green-50)',  border: 'var(--green-100)',  tag: 'Pour débuter'    },
   silver:  { color: 'var(--text-400)',   bg: 'var(--bg-subtle)', border: 'var(--border)',     tag: 'Populaire'       },
   gold:    { color: 'var(--amber-600)',  bg: 'var(--amber-50)',  border: 'var(--amber-100)',  tag: 'Meilleur choix'  },
-  premium: { color: 'var(--red-600)',    bg: 'var(--red-50)',    border: 'var(--red-100)',    tag: 'Maximum profit'  },
+  /* Premium uses violet — not red — to avoid confusion with errors */
+  premium: { color: 'var(--violet-600)', bg: 'var(--violet-50)', border: 'var(--violet-100)', tag: 'Maximum profit'  },
 };
 
 function planFeatures(plan: Plan): string[] {
@@ -99,6 +100,9 @@ export default function InvestPage() {
               const Icon = PLAN_ICONS[plan.id] || TrendingUp;
               const s = PLAN_STYLES[plan.id];
               const isLoading = loading === plan.id;
+              const isActive = dashData?.investments.some(
+                inv => inv.planName.toLowerCase() === plan.name.toLowerCase() && inv.status === 'active'
+              ) ?? false;
               return (
                 <div
                   key={plan.id}
@@ -106,7 +110,14 @@ export default function InvestPage() {
                   style={{ animationDelay: `${i * 0.07}s`, opacity: loading && !isLoading ? 0.5 : 1, transition: 'opacity 0.2s' }}
                   onClick={() => handlePlan(plan)}
                 >
-                  <div className={`plan-badge plan-badge-${plan.id === 'silver' ? 'silver' : plan.id === 'gold' ? 'gold' : plan.id === 'premium' ? 'premium' : 'starter'}`} />
+                  {/* Active indicator badge */}
+                  {isActive && (
+                    <span className="plan-active-badge" aria-label="Plan actif">
+                      <CheckCircle2 size={10} aria-hidden="true" /> Actif
+                    </span>
+                  )}
+
+                  <div className={`plan-badge plan-badge-${plan.id === 'silver' ? 'silver' : plan.id === 'gold' ? 'gold' : plan.id === 'premium' ? 'premium' : 'starter'}`} aria-hidden="true" />
 
                   <div className="plan-icon-wrapper" style={{ marginTop: '10px', background: s.bg, border: `1px solid ${s.border}`, color: s.color }}>
                     <Icon size={22} />

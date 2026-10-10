@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import {
   Copy, CheckCircle2, Share2, Users, TrendingUp, Clock, Gift,
-  Smartphone, Globe, MessageSquare, User, Target, DollarSign, Search,
+  Smartphone, Globe, MessageSquare, User, Search, Target, DollarSign,
 } from 'lucide-react';
 import { api, ApiClientError } from '@/lib/api';
 import { formatPhone, formatDate, fmt } from '@/lib/format';
@@ -145,29 +145,48 @@ export default function ReferralPage() {
 
             <div className="grid-2-sm" style={{ marginBottom: '16px' }}>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-500)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>
                   Lien complet
                 </div>
                 <div className="referral-link-box" style={{ marginBottom: 0 }}>
                   <span className="referral-link-text">{referralLink}</span>
-                  <button className="copy-btn" onClick={() => handleCopy('link')}>
-                    {copied === 'link' ? <><CheckCircle2 size={12} /> Copié !</> : <><Copy size={12} /> Copier</>}
+                  <button
+                    className="copy-btn"
+                    onClick={() => handleCopy('link')}
+                    aria-label={copied === 'link' ? 'Lien copié dans le presse-papier' : 'Copier le lien'}
+                  >
+                    {copied === 'link'
+                      ? <><CheckCircle2 size={12} aria-hidden="true" /> Copié !</>
+                      : <><Copy size={12} aria-hidden="true" /> Copier</>
+                    }
                   </button>
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-500)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>
                   Code de parrainage
                 </div>
                 <div className="referral-link-box" style={{ marginBottom: 0 }}>
                   <span style={{ flex: 1, fontFamily: 'monospace', fontWeight: 800, fontSize: '14px', color: 'var(--leed-yellow)', letterSpacing: '2px' }}>
                     {referralCode}
                   </span>
-                  <button className="copy-btn" onClick={() => handleCopy('code')}>
-                    {copied === 'code' ? <><CheckCircle2 size={12} /> Copié !</> : <><Copy size={12} /> Copier</>}
+                  <button
+                    className="copy-btn"
+                    onClick={() => handleCopy('code')}
+                    aria-label={copied === 'code' ? 'Code copié dans le presse-papier' : 'Copier le code'}
+                  >
+                    {copied === 'code'
+                      ? <><CheckCircle2 size={12} aria-hidden="true" /> Copié !</>
+                      : <><Copy size={12} aria-hidden="true" /> Copier</>
+                    }
                   </button>
                 </div>
               </div>
+            </div>
+            {/* Announce copy success to screen readers */}
+            <div aria-live="polite" aria-atomic="true" className="sr-only">
+              {copied === 'link' && 'Lien de parrainage copié dans le presse-papier.'}
+              {copied === 'code' && 'Code de parrainage copié dans le presse-papier.'}
             </div>
 
             <div>
@@ -222,9 +241,9 @@ export default function ReferralPage() {
 
             {filteredReferrals.length === 0 ? (
               <div className="empty-referrals-box">
-                <Users size={32} style={{ margin: '0 auto 8px', opacity: 0.5, color: 'var(--text-400)' }} />
+                <Users size={32} aria-hidden="true" style={{ margin: '0 auto 8px', opacity: 0.5, color: 'var(--text-400)' }} />
                 <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>Aucun filleul trouvé</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-400)' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-500)' }}>
                   {searchQuery ? `Aucun résultat pour "${searchQuery}"` : 'Aucun filleul dans cette catégorie.'}
                 </div>
                 {(searchQuery || statusFilter !== 'all') && (
@@ -234,96 +253,61 @@ export default function ReferralPage() {
                 )}
               </div>
             ) : (
-              <>
-                {/* Desktop table */}
-                <div className="referrals-table-desktop">
-                  <div className="table-wrap">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Numéro</th>
-                          <th>Date d&apos;inscription</th>
-                          <th>Plan souscrit</th>
-                          <th>Montant</th>
-                          <th>Ma commission</th>
-                          <th>Statut</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredReferrals.map((ref, i) => {
-                          const pStyle = ref.planName ? (planStyles[ref.planName] || { bg: 'var(--bg-subtle)', text: 'var(--text-700)' }) : { bg: 'var(--bg-subtle)', text: 'var(--text-700)' };
-                          return (
-                            <tr key={i}>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <div className="referral-avatar-circle"><User size={13} /></div>
-                                  <span style={{ fontWeight: 600, fontSize: '13px' }}>{formatPhone(ref.phone)}</span>
-                                </div>
-                              </td>
-                              <td style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{formatDate(ref.createdAt)}</td>
-                              <td>
-                                {ref.planName ? (
-                                  <span className="plan-badge" style={{ background: pStyle.bg, color: pStyle.text }}>{ref.planName}</span>
-                                ) : (
-                                  <span style={{ color: 'var(--text-400)', fontSize: '12px' }}>—</span>
-                                )}
-                              </td>
-                              <td style={{ fontWeight: 600 }}>{ref.amount ? `${fmt(ref.amount)} FCFA` : '—'}</td>
-                              <td><span className="commission-badge-tag">+{fmt(ref.commission)} FCFA</span></td>
-                              <td>
-                                <span className={`badge ${ref.status === 'paid' ? 'badge-paid' : 'badge-pending'}`}>
-                                  {ref.status === 'paid' ? <><CheckCircle2 size={11} /> Versé</> : <><Clock size={11} /> En attente</>}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Mobile cards */}
-                <div className="referrals-cards-mobile">
-                  {filteredReferrals.map((ref, i) => {
-                    const pStyle = ref.planName ? (planStyles[ref.planName] || { bg: 'var(--bg-subtle)', text: 'var(--text-700)' }) : { bg: 'var(--bg-subtle)', text: 'var(--text-700)' };
-                    return (
-                      <div key={i} className="referral-mobile-card">
-                        <div className="referral-card-top">
-                          <div className="referral-user-info">
-                            <div className="referral-avatar-circle"><User size={15} /></div>
-                            <div>
-                              <div className="referral-phone-text">{formatPhone(ref.phone)}</div>
-                              <div className="referral-date-text">{formatDate(ref.createdAt)}</div>
+              /* Unified responsive table — desktop: normal table, mobile: card layout via CSS */
+              <div className="referral-table-wrap">
+                <table className="referral-table-responsive" aria-label="Liste des filleuls">
+                  <thead>
+                    <tr>
+                      <th scope="col">Numéro</th>
+                      <th scope="col">Date</th>
+                      <th scope="col">Plan</th>
+                      <th scope="col">Montant</th>
+                      <th scope="col">Commission</th>
+                      <th scope="col">Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredReferrals.map((ref, i) => {
+                      const pStyle = ref.planName
+                        ? (planStyles[ref.planName] || { bg: 'var(--bg-subtle)', text: 'var(--text-700)' })
+                        : { bg: 'var(--bg-subtle)', text: 'var(--text-700)' };
+                      return (
+                        <tr key={i}>
+                          <td data-label="Numéro">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div className="referral-avatar-circle" aria-hidden="true"><User size={13} /></div>
+                              <span style={{ fontWeight: 600 }}>{formatPhone(ref.phone)}</span>
                             </div>
-                          </div>
-                          <span className={`badge ${ref.status === 'paid' ? 'badge-paid' : 'badge-pending'}`}>
-                            {ref.status === 'paid' ? <><CheckCircle2 size={11} /> Versé</> : <><Clock size={11} /> En attente</>}
-                          </span>
-                        </div>
-                        <div className="referral-card-grid">
-                          <div className="referral-grid-col">
-                            <span className="referral-col-label">Plan</span>
-                            {ref.planName ? (
-                              <span className="plan-badge" style={{ background: pStyle.bg, color: pStyle.text }}>{ref.planName}</span>
-                            ) : (
-                              <span style={{ fontSize: '12.5px', color: 'var(--text-400)' }}>—</span>
-                            )}
-                          </div>
-                          <div className="referral-grid-col">
-                            <span className="referral-col-label">Montant</span>
-                            <span className="referral-col-value">{ref.amount ? `${fmt(ref.amount)} F` : '—'}</span>
-                          </div>
-                          <div className="referral-grid-col">
-                            <span className="referral-col-label">Commission</span>
-                            <span className="commission-badge-tag">+{fmt(ref.commission)} F</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
+                          </td>
+                          <td data-label="Date" style={{ color: 'var(--text-500)', fontSize: '12px' }}>
+                            {formatDate(ref.createdAt)}
+                          </td>
+                          <td data-label="Plan">
+                            {ref.planName
+                              ? <span className="plan-badge" style={{ background: pStyle.bg, color: pStyle.text }}>{ref.planName}</span>
+                              : <span style={{ color: 'var(--text-400)', fontSize: '12px' }}>—</span>
+                            }
+                          </td>
+                          <td data-label="Montant" style={{ fontWeight: 600 }}>
+                            {ref.amount ? `${fmt(ref.amount)} FCFA` : '—'}
+                          </td>
+                          <td data-label="Commission">
+                            <span className="commission-badge-tag">+{fmt(ref.commission)} FCFA</span>
+                          </td>
+                          <td data-label="Statut">
+                            <span className={`badge ${ref.status === 'paid' ? 'badge-paid' : 'badge-pending'}`}>
+                              {ref.status === 'paid'
+                                ? <><CheckCircle2 size={11} aria-hidden="true" /> Versé</>
+                                : <><Clock size={11} aria-hidden="true" /> En attente</>
+                              }
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

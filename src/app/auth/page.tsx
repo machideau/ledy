@@ -71,15 +71,21 @@ function AuthContent() {
       }}>
 
         {/* Tabs */}
-        <div style={{
-          display: 'flex', gap: '4px',
-          background: 'var(--bg-subtle)',
-          borderRadius: 'var(--r-md)', padding: '4px',
-          marginBottom: '24px',
-        }}>
+        <div
+          role="tablist"
+          aria-label="Mode de connexion"
+          style={{
+            display: 'flex', gap: '4px',
+            background: 'var(--bg-subtle)',
+            borderRadius: 'var(--r-md)', padding: '4px',
+            marginBottom: '24px',
+          }}
+        >
           {(['login', 'register'] as const).map(m => (
             <button
               key={m}
+              role="tab"
+              aria-selected={mode === m}
               onClick={() => { setMode(m); setError(''); }}
               style={{
                 flex: 1, padding: '8px', borderRadius: 'var(--r-sm)',
@@ -111,13 +117,17 @@ function AuthContent() {
 
         {/* Erreur */}
         {error && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'var(--red-50)', border: '1px solid var(--red-100)',
-            borderRadius: 'var(--r-md)', padding: '10px 13px',
-            marginBottom: '14px', color: 'var(--red-600)', fontSize: '13px',
-          }}>
-            <AlertTriangle size={15} style={{ flexShrink: 0 }} /> {error}
+          <div
+            role="alert"
+            aria-live="assertive"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'var(--red-50)', border: '1px solid var(--red-100)',
+              borderRadius: 'var(--r-md)', padding: '10px 13px',
+              marginBottom: '14px', color: 'var(--red-600)', fontSize: '13px',
+            }}
+          >
+            <AlertTriangle size={15} aria-hidden="true" style={{ flexShrink: 0 }} /> {error}
           </div>
         )}
 
@@ -125,19 +135,23 @@ function AuthContent() {
 
           {/* Téléphone */}
           <div className="form-group">
-            <label className="form-label">
-              <Phone size={11} style={{ display: 'inline', marginRight: '4px' }} />
+            <label className="form-label" htmlFor="auth-phone">
+              <Phone size={11} aria-hidden="true" style={{ display: 'inline', marginRight: '4px' }} />
               Numéro de téléphone
             </label>
             <div style={{ position: 'relative' }}>
-              <span style={{
-                position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-                display: 'inline-flex', alignItems: 'center', gap: '5px',
-                color: 'var(--text-400)', fontSize: '13px', fontWeight: 600,
-              }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
+                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                  color: 'var(--text-400)', fontSize: '13px', fontWeight: 600,
+                }}
+              >
                 +228
               </span>
               <input
+                id="auth-phone"
                 className="form-input"
                 style={{ paddingLeft: '54px' }}
                 type="tel"
@@ -145,6 +159,7 @@ function AuthContent() {
                 value={phone}
                 onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
                 maxLength={8}
+                autoComplete="tel-national"
                 autoFocus
               />
             </div>
@@ -152,29 +167,32 @@ function AuthContent() {
 
           {/* Mot de passe */}
           <div className="form-group">
-            <label className="form-label">
-              <Lock size={11} style={{ display: 'inline', marginRight: '4px' }} />
+            <label className="form-label" htmlFor="auth-password">
+              <Lock size={11} aria-hidden="true" style={{ display: 'inline', marginRight: '4px' }} />
               Mot de passe
             </label>
             <div style={{ position: 'relative' }}>
               <input
+                id="auth-password"
                 className="form-input"
                 style={{ paddingRight: '42px' }}
                 type={showPass ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               />
               <button
                 type="button"
                 onClick={() => setShowPass(!showPass)}
+                aria-label={showPass ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                 style={{
                   position: 'absolute', right: '11px', top: '50%', transform: 'translateY(-50%)',
                   background: 'none', border: 'none', cursor: 'pointer',
                   color: 'var(--text-400)', display: 'flex',
                 }}
               >
-                {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                {showPass ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
               </button>
             </div>
           </div>

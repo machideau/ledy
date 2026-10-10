@@ -106,16 +106,24 @@ export default function WithdrawPage() {
                     <TrendingUp size={15} /> Choisir un plan
                   </a>
                 </div>
-              ) : done ? (                <div style={{ textAlign: 'center', padding: '32px 16px' }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--amber-50)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Clock size={28} style={{ color: 'var(--amber-600)' }} />
+              ) : done ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--green-50)', margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <CheckCircle2 size={28} aria-hidden="true" style={{ color: 'var(--green-600)' }} />
                   </div>
-                  <h3 style={{ fontWeight: 800, color: 'var(--amber-600)', marginBottom: '8px' }}>Demande soumise !</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.6, marginBottom: '18px' }}>
-                    Votre retrait de <strong style={{ color: 'var(--text-primary)' }}>{fmt(parseInt(amount))} FCFA</strong> est en attente d&apos;approbation par l&apos;administrateur. Vous serez notifié dès qu&apos;il sera traité.
+                  <h3 style={{ fontWeight: 800, color: 'var(--green-600)', marginBottom: '8px' }}>Demande soumise !</h3>
+                  <p style={{ color: 'var(--text-500)', fontSize: '13px', lineHeight: 1.6, marginBottom: '18px' }}>
+                    Votre retrait de{' '}
+                    <strong style={{ color: 'var(--text-900)' }}>{fmt(parseInt(amount))} FCFA</strong>{' '}
+                    est en attente d&apos;approbation. Vous serez notifié dès qu&apos;il sera traité.
                   </p>
-                  <button className="btn btn-green" onClick={() => { setDone(false); setAmount(''); setPhone(''); setError(''); }} style={{ width: '100%', justifyContent: 'center' }}>
-                    Nouveau retrait
+                  <button
+                    className="btn btn-green"
+                    onClick={() => { setDone(false); setAmount(''); setPhone(''); setError(''); }}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    aria-label="Effectuer un nouveau retrait"
+                  >
+                    <ArrowDownToLine size={14} aria-hidden="true" /> Nouveau retrait
                   </button>
                 </div>
               ) : (
@@ -235,8 +243,9 @@ export default function WithdrawPage() {
             <div className="card">
               <div className="section-title" style={{ marginBottom: '16px' }}>Historique des retraits</div>
 
+              <div aria-live="polite" aria-atomic="true">
               {withdrawals.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-400)', fontSize: '13px' }}>
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-500)', fontSize: '13px' }}>
                   Aucun retrait pour le moment.
                 </div>
               ) : (
@@ -244,17 +253,17 @@ export default function WithdrawPage() {
                   {withdrawals.map((w, i) => (
                     <div key={i} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)',
+                      background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)',
                       padding: '12px 14px', border: '1px solid var(--border)',
                     }}>
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                         <div style={{
                           width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                          background: w.status === 'paid' ? 'var(--leed-green-pale)' : w.status === 'cancelled' ? 'var(--red-50)' : 'var(--amber-50)',
+                          background: w.status === 'paid' ? 'var(--green-50)' : w.status === 'cancelled' ? 'var(--red-50)' : 'var(--amber-50)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
+                        }} aria-hidden="true">
                           {w.status === 'paid'
-                            ? <CheckCircle2 size={15} style={{ color: 'var(--leed-green)' }} />
+                            ? <CheckCircle2 size={15} style={{ color: 'var(--green-600)' }} />
                             : w.status === 'cancelled'
                             ? <XCircle size={15} style={{ color: 'var(--red-600)' }} />
                             : <Clock size={15} style={{ color: 'var(--amber-600)' }} />
@@ -262,17 +271,17 @@ export default function WithdrawPage() {
                         </div>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '2px' }}>{w.type}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{formatDate(w.createdAt)} · {w.ref}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-500)' }}>{formatDate(w.createdAt)} · {w.ref}</div>
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 800, fontSize: '13.5px', color: 'var(--leed-green)' }}>+{fmt(w.amount)} FCFA</div>
+                        <div style={{ fontWeight: 800, fontSize: '13.5px', color: 'var(--primary)' }}>+{fmt(w.amount)} FCFA</div>
                         <span
                           className={`badge ${w.status === 'paid' ? 'badge-paid' : ''}`}
                           style={
-                            w.status === 'cancelled' ? { background: 'var(--red-50)', color: 'var(--red-600)', fontSize: '10px' }
-                            : w.status === 'pending' ? { background: 'var(--amber-100)', color: 'var(--amber-600)', fontSize: '10px' }
-                            : { fontSize: '10px' }
+                            w.status === 'cancelled' ? { background: 'var(--red-50)', color: 'var(--red-600)' }
+                            : w.status === 'pending'  ? { background: 'var(--amber-100)', color: 'var(--amber-600)' }
+                            : {}
                           }
                         >
                           {w.status === 'paid' ? 'Approuvé' : w.status === 'cancelled' ? 'Refusé' : 'En attente'}
@@ -282,15 +291,16 @@ export default function WithdrawPage() {
                   ))}
                 </div>
               )}
+              </div>
 
               {/* Total */}
               <div style={{
                 marginTop: '14px', padding: '12px 14px',
-                background: 'var(--leed-green-pale)', border: '1px solid var(--border-green)',
-                borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between',
+                background: 'var(--primary-pale)', border: '1px solid var(--primary-light)',
+                borderRadius: 'var(--r-md)', display: 'flex', justifyContent: 'space-between',
               }}>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Total reçu</span>
-                <span style={{ fontWeight: 800, color: 'var(--leed-green)', fontSize: '14px' }}>
+                <span style={{ color: 'var(--text-500)', fontSize: '13px' }}>Total reçu</span>
+                <span style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '14px' }}>
                   {fmt(totalPaid)} FCFA
                 </span>
               </div>
