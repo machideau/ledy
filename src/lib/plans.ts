@@ -1,11 +1,16 @@
 import type { Plan, PlanId, PlanName } from "./types";
 
 // Single source of truth for all investment plans.
+// Gain model: 10 % per day × 30 days = 300 % of the deposit.
+// Paid in 3 equal instalments every 10 days: tranche = amount × 1 each.
+// remb  = 50 % refunded immediately on payment confirmation.
+// gain  = total gain = amount × 3  (3 tranches of 100 % each).
+// TRANCHE_GAIN(plan) = plan.gain / INVESTMENT_TRANCHES = plan.amount.
 export const PLANS: Plan[] = [
-  { id: "starter", name: "Starter", amount: 2000,  remb: 1000,  gain: 2000,  featured: false },
-  { id: "silver",  name: "Argent",  amount: 5000,  remb: 2500,  gain: 5000,  featured: false },
-  { id: "gold",    name: "Or",      amount: 15000, remb: 7500,  gain: 15000, featured: true  },
-  { id: "premium", name: "Premium", amount: 30000, remb: 15000, gain: 30000, featured: false },
+  { id: "starter", name: "Starter", amount: 2000,  remb: 1000,  gain: 6000,  featured: false },
+  { id: "silver",  name: "Argent",  amount: 5000,  remb: 2500,  gain: 15000, featured: false },
+  { id: "gold",    name: "Or",      amount: 15000, remb: 7500,  gain: 45000, featured: true  },
+  { id: "premium", name: "Premium", amount: 30000, remb: 15000, gain: 90000, featured: false },
 ];
 
 export const PLAN_BY_AMOUNT: Record<number, Plan> = Object.fromEntries(
@@ -26,6 +31,10 @@ export const PLAN_LABELS: Record<string, string> = Object.fromEntries(
 
 export const REFERRAL_COMMISSION = 500; // FCFA per referral who invests
 export const INVESTMENT_DURATION_DAYS = 30;
+// Gain is paid in 3 equal tranches every 10 days.
+// Each tranche = plan.amount (= plan.gain / 3).
+export const INVESTMENT_TRANCHES = 3;
+export const TRANCHE_INTERVAL_DAYS = 10; // J+10, J+20, J+30
 
 // Helper: generate a referral code candidate LEED-XX1234
 // ⚠️  Collisions are possible. Call this inside a retry loop:

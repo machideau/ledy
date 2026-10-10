@@ -80,9 +80,9 @@ export default function WithdrawPage() {
           <div className="page-header">
             <div>
               <h1 className="page-title">
-                Retrait <CreditCard size={22} style={{ color: 'var(--leed-green)' }} />
+                Retrait <CreditCard size={22} style={{ color: 'var(--leed-green)' }} aria-hidden="true" />
               </h1>
-              <p className="page-subtitle">Retirez vos gains sur Flooz ou Mixx by Yas</p>
+              <p className="page-subtitle">Retirez vos gains sur Flooz ou Mixx by Yas · Commissions disponibles immédiatement · Tranches disponibles à J+10, J+20, J+30</p>
             </div>
           </div>
 

@@ -30,7 +30,7 @@ function planFeatures(plan: Plan): string[] {
   return [
     `Dépôt : ${fmt(plan.amount)} FCFA`,
     `Remboursé immédiat : ${fmt(plan.remb)} FCFA`,
-    `Gain en 1 mois : +${fmt(plan.gain)} FCFA`,
+    `+${fmt(plan.amount)} FCFA à J+10, J+20, J+30`,
     'Commission parrainage : 500 FCFA',
   ];
 }
@@ -80,7 +80,7 @@ export default function InvestPage() {
               <h1 className="page-title">
                 Investir <TrendingUp size={22} style={{ color: 'var(--primary)' }} />
               </h1>
-              <p className="page-subtitle">Choisissez votre plan · 50 % remboursé immédiatement · Mise x2 en 1 mois</p>
+              <p className="page-subtitle">Choisissez votre plan · 50 % remboursé immédiatement · 10 % de gain par jour pendant 30 jours</p>
             </div>
           </div>
 
@@ -136,8 +136,8 @@ export default function InvestPage() {
                       <span style={{ fontWeight: 700, color: 'var(--green-600)' }}>{fmt(plan.remb)} FCFA</span>
                     </div>
                     <div className="plan-recap-row">
-                      <span>Gain en 1 mois</span>
-                      <span style={{ fontWeight: 700, color: s.color }}>+{fmt(plan.gain)} FCFA</span>
+                      <span>× 3 tranches (J+10/20/30)</span>
+                      <span style={{ fontWeight: 700, color: s.color }}>+{fmt(plan.amount)} FCFA chacune</span>
                     </div>
                     <div className="plan-recap-row" style={{ borderTop: '1px solid var(--border)', paddingTop: '6px', marginTop: '2px' }}>
                       <span style={{ fontWeight: 700, color: 'var(--text-900)' }}>Total reçu</span>

@@ -283,28 +283,59 @@ function DashboardContent() {
                             <span style={{ color: 'var(--text-400)', fontSize: '11.5px' }}>{formatDate(inv.createdAt)}</span>
                           </div>
                           {inv.status === 'completed'
-                            ? <span className="badge badge-paid"><CheckCircle2 size={11} /> Terminé</span>
-                            : <span className="badge badge-pending"><Clock size={11} /> En cours</span>
+                            ? <span className="badge badge-paid"><CheckCircle2 size={11} aria-hidden="true" /> Terminé</span>
+                            : <span className="badge badge-pending"><Clock size={11} aria-hidden="true" /> En cours</span>
                           }
                         </div>
 
                         {/* Montants */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--text-500)', marginBottom: '10px' }}>
                           <span>Dépôt : <strong style={{ color: 'var(--text-900)' }}>{fmt(inv.amount)} FCFA</strong></span>
-                          <span>Gain : <strong style={{ color }}>+{fmt(inv.gain)} FCFA</strong></span>
+                          <span>Gain total : <strong style={{ color }}>+{fmt(inv.gain)} FCFA</strong></span>
+                        </div>
+
+                        {/* 3 tranches */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '10px' }}>
+                          {([
+                            { label: 'J+10', paidAt: inv.tranche1PaidAt },
+                            { label: 'J+20', paidAt: inv.tranche2PaidAt },
+                            { label: 'J+30', paidAt: inv.tranche3PaidAt },
+                          ] as { label: string; paidAt: string | null }[]).map(({ label, paidAt }) => (
+                            <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {paidAt
+                                  ? <CheckCircle2 size={13} style={{ color: 'var(--green-600)', flexShrink: 0 }} aria-hidden="true" />
+                                  : <Clock size={13} style={{ color: 'var(--text-400)', flexShrink: 0 }} aria-hidden="true" />
+                                }
+                                <span style={{ fontWeight: 600, color: paidAt ? 'var(--green-600)' : 'var(--text-400)' }}>
+                                  Tranche {label}
+                                </span>
+                              </div>
+                              <span style={{ fontWeight: 700, color: paidAt ? 'var(--green-600)' : 'var(--text-500)' }}>
+                                {paidAt ? `+${fmt(inv.tranche)} FCFA versé` : `+${fmt(inv.tranche)} FCFA`}
+                              </span>
+                            </div>
+                          ))}
                         </div>
 
                         {/* Countdown ou message de fin */}
                         {inv.status === 'active' ? (
                           <div style={{ marginBottom: '10px' }}>
                             <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-400)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '5px' }}>
-                              Temps restant
+                              Prochaine tranche
                             </div>
-                            <Countdown expiresAt={inv.expiresAt} color={color} />
+                            <Countdown expiresAt={
+                              // Show countdown to the next unpaid tranche
+                              !inv.tranche1PaidAt
+                                ? new Date(new Date(inv.createdAt).getTime() + 10 * 24 * 60 * 60 * 1000).toISOString()
+                                : !inv.tranche2PaidAt
+                                ? new Date(new Date(inv.createdAt).getTime() + 20 * 24 * 60 * 60 * 1000).toISOString()
+                                : inv.expiresAt
+                            } color={color} />
                           </div>
                         ) : (
                           <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: 'var(--green-600)', fontWeight: 700 }}>
-                            <CheckCircle2 size={14} /> Gain disponible · {fmt(inv.gain)} FCFA
+                            <CheckCircle2 size={14} aria-hidden="true" /> Gain total versé · {fmt(inv.gain)} FCFA
                           </div>
                         )}
 
@@ -314,7 +345,7 @@ function DashboardContent() {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-400)', marginTop: '5px' }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            <Zap size={11} style={{ color: 'var(--green-600)' }} />
+                            <Zap size={11} style={{ color: 'var(--green-600)' }} aria-hidden="true" />
                             Remboursé : {fmt(inv.remb)} FCFA
                           </span>
                           <span style={{ fontWeight: 700 }}>{progress} %</span>
@@ -421,8 +452,8 @@ function DashboardContent() {
             <div className="grid-3">
               {[
                 { step: '01', icon: CreditCard, color: 'var(--green-600)', bg: 'var(--green-50)',  border: 'var(--green-100)', title: 'Vous déposez',     desc: 'Choisissez votre plan et payez via Flooz ou Mixx by Yas.', detail: '2 000 à 30 000 FCFA' },
-                { step: '02', icon: Zap,        color: 'var(--amber-600)', bg: 'var(--amber-50)',  border: 'var(--amber-100)', title: '50 % remboursé',   desc: 'La moitié de votre dépôt est reversée immédiatement.',  detail: 'Dans les 24 h'     },
-                { step: '03', icon: TrendingUp, color: 'var(--primary)',   bg: 'var(--primary-pale)',    border: 'var(--primary-light)',   title: 'Mise x2 en 1 mois', desc: 'Votre dépôt initial vous est rendu en double.',          detail: 'J+30 garanti'      },
+                { step: '02', icon: Zap,        color: 'var(--amber-600)', bg: 'var(--amber-50)',       border: 'var(--amber-100)',      title: '50 % remboursé',             desc: 'La moitié de votre dépôt est reversée immédiatement.',              detail: 'Dans les 24 h'     },
+                { step: '03', icon: TrendingUp, color: 'var(--primary)',   bg: 'var(--primary-pale)',    border: 'var(--primary-light)',   title: '10 %/jour en 3 versements',  desc: 'Vos gains tombent à J+10, J+20 et J+30 — chaque tranche = 100 % du dépôt.', detail: '3 tranches garanties' },
               ].map(({ step, icon: Icon, color, bg, border, title, desc, detail }) => (
                 <div key={step} className="step-card" style={{ background: bg, border: `1px solid ${border}` }}>
                   <div className="flex items-center gap-5 mb-6">

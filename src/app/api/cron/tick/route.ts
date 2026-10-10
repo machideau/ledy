@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { TRANCHE_INTERVAL_DAYS } from "@/lib/plans";
 
 // GET /api/cron/tick
 // Called daily at 06:00 UTC by Vercel Cron (vercel.json).
 //
-// Uses expiresAt (exact timestamp) to determine completion.
-// daysLeft is kept in sync for display purposes.
+// Gain model: 10 % per day × 30 days = 300 % of the deposit.
+// Paid in 3 equal tranches every 10 days:
+//   tranche 1 = amount  (credited at J+10)
+//   tranche 2 = amount  (credited at J+20)
+//   tranche 3 = amount  (credited at J+30, investment → completed)
 //
-// #7 — replaced the N+1 per-investment update loop with a single updateMany
-// for completed investments and a single updateMany per distinct daysLeft bucket
-// using raw SQL for the still-running ones.
+// Each tranche is tracked by tranche1PaidAt / tranche2PaidAt / tranche3PaidAt.
+// NULL means not yet paid. The cron sets them on the first tick that crosses
+// the threshold (createdAt + N × TRANCHE_INTERVAL_DAYS).
+// expiresAt == createdAt + 30 days is still used as the authoritative
+// completion trigger (tranche 3).
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -17,55 +23,105 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  const TRANCHE_MS = TRANCHE_INTERVAL_DAYS * MS_PER_DAY; // 10 days in ms
 
-  // ── Step 1: mark expired investments as completed in one query ────────────
-  const { count: completedCount } = await prisma.investment.updateMany({
-    where: { status: "active", expiresAt: { lte: now } },
-    data:  { status: "completed", daysLeft: 0 },
+  // ── Fetch all active investments ──────────────────────────────────────────
+  const activeInvestments = await prisma.investment.findMany({
+    where:  { status: "active" },
+    select: {
+      id: true,
+      userId: true,
+      amount: true,
+      gain: true,
+      createdAt: true,
+      expiresAt: true,
+      tranche1PaidAt: true,
+      tranche2PaidAt: true,
+      tranche3PaidAt: true,
+    },
   });
 
-  // #9 — credit the gain to each user's denormalised balance for completed investments
-  if (completedCount > 0) {
-    const justCompleted = await prisma.investment.findMany({
-      where: { status: "completed", expiresAt: { lte: now } },
-      select: { userId: true, gain: true },
-    });
+  // Accumulate balance increments per user to batch updates
+  const balanceByUser = new Map<string, number>();
+  const addBalance = (userId: string, amount: number) =>
+    balanceByUser.set(userId, (balanceByUser.get(userId) ?? 0) + amount);
 
-    // Group gain by userId so we do one update per user, not per investment
-    const gainByUser = new Map<string, number>();
-    for (const inv of justCompleted) {
-      gainByUser.set(inv.userId, (gainByUser.get(inv.userId) ?? 0) + inv.gain);
+  // Track which investments need which updates
+  const updates: Array<{
+    id: string;
+    data: {
+      tranche1PaidAt?: Date;
+      tranche2PaidAt?: Date;
+      tranche3PaidAt?: Date;
+      status?: "completed";
+      daysLeft?: number;
+    };
+    trancheAmount: number;   // total new balance to credit for this investment this tick
+    userId: string;
+  }> = [];
+
+  for (const inv of activeInvestments) {
+    const elapsedMs  = now.getTime() - inv.createdAt.getTime();
+    const tranche    = Math.floor(inv.gain / 3); // = inv.amount exactly
+    const data: typeof updates[number]["data"] = {};
+    let credit = 0;
+
+    // ── Tranche 1: J+10 ────────────────────────────────────────────────────
+    if (!inv.tranche1PaidAt && elapsedMs >= TRANCHE_MS) {
+      data.tranche1PaidAt = now;
+      credit += tranche;
     }
 
-    await Promise.all(
-      Array.from(gainByUser.entries()).map(([userId, gain]) =>
-        prisma.user.update({
-          where: { id: userId },
-          data:  { balance: { increment: gain } },
-        })
-      )
-    );
+    // ── Tranche 2: J+20 ────────────────────────────────────────────────────
+    if (!inv.tranche2PaidAt && elapsedMs >= 2 * TRANCHE_MS) {
+      data.tranche2PaidAt = now;
+      credit += tranche;
+    }
+
+    // ── Tranche 3: J+30 — also completes the investment ───────────────────
+    if (!inv.tranche3PaidAt && now >= inv.expiresAt) {
+      data.tranche3PaidAt = now;
+      data.status   = "completed";
+      data.daysLeft = 0;
+      credit += tranche;
+    }
+
+    if (credit > 0) {
+      updates.push({ id: inv.id, data, trancheAmount: credit, userId: inv.userId });
+      addBalance(inv.userId, credit);
+    }
   }
 
-  // ── Step 2: refresh daysLeft for still-running investments ────────────────
-  // Fetch only the ids + expiresAt of still-active investments, then group by
-  // daysLeft value so we can batch-update per bucket instead of one query each.
-  const running = await prisma.investment.findMany({
-    where:  { status: "active" },
-    select: { id: true, expiresAt: true },
+  // ── Apply investment updates (one per investment that changed) ────────────
+  await Promise.all(updates.map(({ id, data }) =>
+    prisma.investment.update({ where: { id }, data })
+  ));
+
+  // ── Apply balance increments (one per user) ───────────────────────────────
+  await Promise.all(
+    Array.from(balanceByUser.entries()).map(([userId, amount]) =>
+      prisma.user.update({
+        where: { id: userId },
+        data:  { balance: { increment: amount } },
+      })
+    )
+  );
+
+  // ── Refresh daysLeft for still-active investments (display only) ──────────
+  const stillActive = activeInvestments.filter(inv => {
+    const updated = updates.find(u => u.id === inv.id);
+    return !updated?.data.status; // not completed this tick
   });
 
-  // Group ids by computed daysLeft value
   const buckets = new Map<number, string[]>();
-  for (const inv of running) {
+  for (const inv of stillActive) {
     const msLeft   = inv.expiresAt.getTime() - now.getTime();
-    const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
-    const key = Math.max(0, daysLeft);
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key)!.push(inv.id);
+    const daysLeft = Math.max(0, Math.ceil(msLeft / MS_PER_DAY));
+    if (!buckets.has(daysLeft)) buckets.set(daysLeft, []);
+    buckets.get(daysLeft)!.push(inv.id);
   }
 
-  // One updateMany per unique daysLeft value (typically ~30 buckets max)
   await Promise.all(
     Array.from(buckets.entries()).map(([daysLeft, ids]) =>
       prisma.investment.updateMany({
@@ -75,23 +131,18 @@ export async function GET(request: Request) {
     )
   );
 
-  // ── Step 3: purge expired revoked tokens ──────────────────────────────────
+  // ── Purge expired revoked tokens ──────────────────────────────────────────
   const { count: purgedTokens } = await prisma.revokedToken.deleteMany({
     where: { expiresAt: { lte: now } },
   });
 
-  // ── Disbursement note ─────────────────────────────────────────────────────
-  // Gains are recorded as virtual wallet balance and users must request a
-  // withdrawal via /withdraw.  Admins process payouts in the /douyin panel.
-  //
-  // When Tchin supports server-initiated transfers (payout API), replace this
-  // block with an automated call per completed investment.
-  // ──────────────────────────────────────────────────────────────────────────
+  const tranchePaid = updates.length;
+  const completed   = updates.filter(u => u.data.status === "completed").length;
 
   return NextResponse.json({
-    processed: running.length + completedCount,
-    completed: completedCount,
-    decremented: running.length,
+    tranchePaid,
+    completed,
+    stillActive: stillActive.length,
     daysLeftBuckets: buckets.size,
     purgedTokens,
     timestamp: now.toISOString(),

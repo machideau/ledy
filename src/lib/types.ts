@@ -12,7 +12,7 @@ export interface Plan {
   name: PlanName;
   amount: number;
   remb: number;   // 50 % immediate refund
-  gain: number;   // doubled at J+30
+  gain: number;   // total gain = amount × 3 (10 %/day × 30 days, 3 tranches)
   featured: boolean;
 }
 
@@ -28,7 +28,11 @@ export interface InvestmentDTO {
   planName: PlanName;
   amount: number;
   remb: number;
-  gain: number;
+  gain: number;          // total gain = amount × 3
+  tranche: number;       // single tranche value = amount (= gain / 3)
+  tranche1PaidAt: string | null;   // ISO — null = not yet paid
+  tranche2PaidAt: string | null;
+  tranche3PaidAt: string | null;
   status: InvestmentStatus;
   daysLeft: number;
   expiresAt: string;   // ISO string — used for live countdown

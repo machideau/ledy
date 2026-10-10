@@ -76,10 +76,17 @@ model Investment {
   planName   String                    // Starter | Argent | Or | Premium
   amount     Int                       // deposit
   remb       Int                       // 50 % immediate refund
-  gain       Int                       // doubled amount at J+30
+  gain       Int                       // total gain = amount × 3 (10 %/day × 30 days)
   status     InvestmentStatus @default(active)
-  daysLeft   Int                       // approximate days remaining (for compat)
-  expiresAt  DateTime                  // exact expiry timestamp (J+30 from creation)
+  daysLeft   Int                       // approximate days remaining (for display)
+  expiresAt  DateTime                  // exact expiry = createdAt + 30 days
+
+  // 3-tranche payout timestamps (null = not yet paid)
+  // Each tranche = amount (= gain / 3), paid at J+10, J+20, J+30
+  tranche1PaidAt DateTime?             // J+10
+  tranche2PaidAt DateTime?             // J+20
+  tranche3PaidAt DateTime?             // J+30
+
   tchinToken String?                   // Tchin payment token (idempotence)
   createdAt  DateTime        @default(now())
 

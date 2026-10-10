@@ -55,7 +55,17 @@ export async function POST(request: Request) {
     const withdrawal = await prisma.$transaction(async (tx) => {
       // ── Re-read all balance data inside the transaction ────────────────────
       const [investments, referrals, existingWithdrawals] = await Promise.all([
-        tx.investment.findMany({ where: { userId: user.id } }),
+        tx.investment.findMany({
+          where: { userId: user.id },
+          select: {
+            gain: true,
+            remb: true,
+            status: true,
+            tranche1PaidAt: true,
+            tranche2PaidAt: true,
+            tranche3PaidAt: true,
+          },
+        }),
         tx.referral.findMany({ where: { referrerId: user.id } }),
         tx.withdrawal.findMany({
           where: { userId: user.id, status: { in: ["pending", "paid"] } },
@@ -68,14 +78,23 @@ export async function POST(request: Request) {
       }
 
       const totalRemb = investments.reduce((s, i) => s + i.remb, 0);
-      const completedGains = investments
-        .filter((i) => i.status === "completed")
-        .reduce((s, i) => s + i.gain, 0);
+
+      // Gains credited = paid tranches only (each tranche = gain/3 = amount)
+      const totalGainCredited = investments.reduce((s, inv) => {
+        const tranche = Math.floor(inv.gain / 3);
+        const paid =
+          (inv.tranche1PaidAt ? tranche : 0) +
+          (inv.tranche2PaidAt ? tranche : 0) +
+          (inv.tranche3PaidAt ? tranche : 0);
+        return s + paid;
+      }, 0);
+
+      // Referral commissions are always available regardless of tranche status
       const referralEarnings = referrals
         .filter((r) => r.status === "paid")
         .reduce((s, r) => s + r.commission, 0);
 
-      const balance = totalRemb + completedGains + referralEarnings;
+      const balance = totalRemb + totalGainCredited + referralEarnings;
       const withdrawnAmount = existingWithdrawals.reduce((s, w) => s + w.amount, 0);
       const availableBalance = balance - withdrawnAmount;
 

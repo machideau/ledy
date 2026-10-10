@@ -35,9 +35,20 @@ export async function GET(request: NextRequest) {
 
   const totalInvested = investments.reduce((s, i) => s + i.amount, 0);
   const totalRemb = investments.reduce((s, i) => s + i.remb, 0);
-  const completedGains = investments
-    .filter((i) => i.status === "completed")
-    .reduce((s, i) => s + i.gain, 0);
+
+  // Gains credited so far = sum of paid tranches across all investments.
+  // Each tranche = gain/3 = amount.
+  // An active investment may have 0, 1, or 2 tranches already paid;
+  // a completed investment always has all 3.
+  const totalGainCredited = investments.reduce((s, inv) => {
+    const tranche = Math.floor(inv.gain / 3);
+    const paid =
+      (inv.tranche1PaidAt ? tranche : 0) +
+      (inv.tranche2PaidAt ? tranche : 0) +
+      (inv.tranche3PaidAt ? tranche : 0);
+    return s + paid;
+  }, 0);
+
   const referralEarnings = referrals
     .filter((r) => r.status === "paid")
     .reduce((s, r) => s + r.commission, 0);
@@ -45,7 +56,7 @@ export async function GET(request: NextRequest) {
 
   // #8 — subtract already-requested withdrawals so the displayed balance is accurate
   const withdrawnAmount = withdrawals.reduce((s, w) => s + w.amount, 0);
-  const walletBalance = totalRemb + completedGains + referralEarnings - withdrawnAmount;
+  const walletBalance = totalRemb + totalGainCredited + referralEarnings - withdrawnAmount;
 
   // #9 — keep denormalised balance in sync (fire-and-forget, non-blocking)
   prisma.user.update({
@@ -70,6 +81,10 @@ export async function GET(request: NextRequest) {
       amount: inv.amount,
       remb: inv.remb,
       gain: inv.gain,
+      tranche: Math.floor(inv.gain / 3),
+      tranche1PaidAt: inv.tranche1PaidAt?.toISOString() ?? null,
+      tranche2PaidAt: inv.tranche2PaidAt?.toISOString() ?? null,
+      tranche3PaidAt: inv.tranche3PaidAt?.toISOString() ?? null,
       status: inv.status as "active" | "completed",
       daysLeft: inv.daysLeft,
       expiresAt: inv.expiresAt.toISOString(),
